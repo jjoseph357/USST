@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USST Avionics Master Schedule &amp; Gantt</title>
+  <meta name="description" content="USST Rocketry Avionics Master Schedule, Interactive Gantt Chart, Calendar Milestones, and Google Sheets Sync." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <span class="brand-badge">USST</span>
+      <div>
+        <div class="brand-title">Avionics Master Schedule</div>
+        <div class="brand-subtitle">Launch Canada 2027 Mission Operations</div>
+      </div>
+    </div>
+
+    <nav class="nav-tabs" aria-label="Main Navigation">
+      <button class="tab-btn active" id="tab-gantt" data-view="gantt">Gantt Chart</button>
+      <button class="tab-btn" id="tab-calendar" data-view="calendar">Calendar View</button>
+      <button class="tab-btn" id="tab-backlog" data-view="backlog">Technical Backlog &amp; Sizing</button>
+    </nav>
+
+    <div class="header-actions">
+      <div class="sync-status-indicator" id="sync-status-badge">
+        <span class="status-dot offline" id="sync-status-dot"></span>
+        <span id="sync-status-text">Local Storage</span>
+      </div>
+      <button class="btn btn-secondary" id="btn-open-sync">
+        <span>⚙ Google Sheets</span>
+      </button>
+      <button class="btn btn-primary" id="btn-add-task">
+        <span>+ Add Item</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filter & Controls Sub-toolbar -->
+  <aside class="sub-toolbar" aria-label="Filters and Controls">
+    <div class="filter-group">
+      <span class="filter-label-title">Filters:</span>
+      <label class="checkbox-pill cat-hw">
+        <input type="checkbox" id="filter-hw" checked />
+        <span>Avionics Hardware</span>
+      </label>
+      <label class="checkbox-pill cat-sw">
+        <input type="checkbox" id="filter-sw" checked />
+        <span>Avionics Software</span>
+      </label>
+      <label class="checkbox-pill cat-milestone">
+        <input type="checkbox" id="filter-milestone" checked />
+        <span>Milestones &amp; Reviews</span>
+      </label>
+      <label class="checkbox-pill cat-university">
+        <input type="checkbox" id="filter-university" checked />
+        <span>University Dates</span>
+      </label>
+      <label class="checkbox-pill cat-session">
+        <input type="checkbox" id="filter-session" checked />
+        <span>Work Sessions</span>
+      </label>
+    </div>
+
+    <div class="view-controls" id="gantt-zoom-controls">
+      <span class="filter-label-title">Scale:</span>
+      <div class="zoom-group">
+        <button class="zoom-btn" data-zoom="day">Day</button>
+        <button class="zoom-btn active" data-zoom="week">Week</button>
+        <button class="zoom-btn" data-zoom="month">Month</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main View Container -->
+  <main class="main-container">
+    <section class="view-section active" id="view-gantt" aria-label="Gantt Chart View">
+      <div class="gantt-wrapper" id="gantt-container"></div>
+    </section>
+
+    <section class="view-section" id="view-calendar" aria-label="Calendar View">
+      <div id="calendar-container"></div>
+    </section>
+
+    <section class="view-section" id="view-backlog" aria-label="Technical Backlog & Capacity View">
+      <div id="backlog-container"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
