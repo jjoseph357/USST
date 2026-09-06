@@ -2,8 +2,7 @@ export type TaskCategory =
   | 'avionics-hw'
   | 'avionics-sw'
   | 'milestone'
-  | 'university'
-  | 'work-session';
+  | 'university';
 
 export type TaskStatus = 'not-started' | 'in-progress' | 'completed' | 'blocked';
 
@@ -43,7 +42,6 @@ export interface CategoryFilterState {
   'avionics-sw': boolean;
   'milestone': boolean;
   'university': boolean;
-  'work-session': boolean;
 }
 
 export type SyncState = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';

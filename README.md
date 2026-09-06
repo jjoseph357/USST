@@ -1,93 +1,95 @@
-# USST Avionics Master Schedule & Gantt
+# USST Avionics Master Schedule
 
-Interactive schedule management web application for the University Student Space Team (USST) Avionics division preparing for Launch Canada 2027.
+Master schedule and engineering backlog web application for the University Student Space Team (USST) Avionics division preparing for Launch Canada 2027.
 
-The application combines an interactive Gantt chart, a milestone calendar, technical backlog tracking with team capacity modeling, and two-way Google Sheets synchronization with Google Drive access control.
+The Google Sheet in your shared drive is the primary source of truth for all schedule dates and milestones. The website presents the timeline, Gantt chart, calendar, and workforce capacity model.
+
+---
+
+## Google Sheets Setup Instructions
+
+Follow these steps to link your Google Sheet with the web application:
+
+1. **Create the Spreadsheet**
+   - Create a new Google Sheet inside your team's Shared Google Drive.
+   - Name it `USST Avionics Master Schedule`.
+
+2. **Add the Apps Script Backend**
+   - In the Google Sheet, open **Extensions > Apps Script**.
+   - Delete any default boilerplate in the code editor.
+   - Open [`google-apps-script/Code.gs`](google-apps-script/Code.gs) in this repository and paste its entire contents into the editor.
+   - In the toolbar dropdown, select `setupSpreadsheet` and click **Run**.
+   - Grant the one-time Google permission prompt.
+   - This populates two formatted sheets: `Schedule` (all deliverables and reviews) and `Backlog & Sizing` (subsystem priorities and student allocations).
+
+3. **Deploy as a Web App**
+   - In Apps Script, click **Deploy > New deployment**.
+   - Click the gear icon next to "Select type" and choose **Web app**.
+   - Set **Execute as** to **Me** (your Google account).
+   - Set **Who has access** to **Anyone** (allows the static GitHub Pages app to read rows).
+   - Click **Deploy** and copy the generated **Web app URL**.
+
+4. **Connect to the Web Application**
+   - Open the web application.
+   - Click **Connect Sheet** in the top navigation bar.
+   - Paste the Web app URL and click **Save & Fetch Schedule**.
+   - The web app will now sync with your Google Sheet.
+
+5. **Optional: Native Google Sheets Gantt View**
+   - In your Google Sheet, select the `Schedule` tab.
+   - In the top menu, click **Insert > Timeline**.
+   - Set the date range to **Start Date** and end date to **End Date**.
+   - Google Sheets will generate a native interactive Gantt chart directly inside the spreadsheet.
+
+---
+
+## Modifying the Schedule
+
+- To alter task start dates, deadlines, dependencies, or assignees, edit the values in the Google Sheet.
+- Only members with Edit permissions on the Google Sheet in your Shared Google Drive can make changes.
+- Click **Refresh** in the web app header to pull the latest updates.
 
 ---
 
 ## Features
 
-- **Interactive Gantt Chart:**
-  - Drag tasks horizontally to shift dates across time.
-  - Left and right stretch handles to adjust task durations directly.
-  - Automated dependency cascades for downstream tasks.
-  - Smooth bezier dependency lines connecting predecessor to successor milestones.
-  - Scale zoom controls: Day, Week, and Month views.
-  - Visual milestone markers with gold pulse styling.
-- **Milestone & Timeline Calendar:**
-  - Monthly calendar view with multi-day event spans.
-  - Quick-toggle category filter checkboxes:
+- **Gantt Timeline:**
+  - Clear horizontal timeline mapping deliverables and milestones from September kickoff through Launch Canada in August.
+  - Smooth dependency curves linking predecessors to successors.
+  - Scale toggle for Day, Week, and Month views.
+  - Diamond markers for design reviews (IDR, PDR, CDR, FRR) and design freezes.
+- **Monthly Calendar:**
+  - Standard month grid with event chips.
+  - Instant category filtering:
     - Avionics Hardware
     - Avionics Software
-    - Milestones & Formal Reviews (IDR, PDR, CDR, Launch Canada)
-    - University Dates (Term Kickoff, Reading Weeks, Exam Blackouts)
-    - Work Sessions (Hackathons, Sprints, Range Tests, Fit Checks)
+    - Milestones & Reviews
+    - University Dates (Reading Weeks, Final Exam Blackouts)
 - **Technical Backlog & Sizing:**
-  - Full Whiteboard 1 software and hardware backlog items with priority badges.
-  - Sizing allocation modeled in person-terms.
-  - Interactive workforce capacity formula:
-    $$\text{Team Members Required Per Term} = \frac{\text{Total Sized Effort}}{\text{Terms}}$$
-    Baseline: $9.0\text{ person-terms} / 2\text{ terms} = 4.5\text{ team members per term}$.
-- **Google Sheets & Shared Google Drive Sync:**
-  - Client-side synchronization with Google Sheets stored in your team's Shared Google Drive.
-  - Permission enforcement: Only users with Edit permissions on the Google Sheet in Google Drive can write changes.
-  - Turnkey Google Apps Script (`google-apps-script/Code.gs`) providing a dedicated REST endpoint.
-  - Compatible with Google Sheets native **Timeline View** (`Insert > Timeline`).
-  - Offline CSV export and import support.
-  - Automatic `localStorage` caching so the app works without network dependencies.
+  - Software backlog sized in person-terms.
+  - Hardware backlog prioritized by power stability and sensor reliability.
+  - Live capacity model: Total Effort (9.0 person-terms) / Terms (2) = 4.5 active members required per term.
 
 ---
 
-## Quick Start (Local Development)
+## Development & Build
 
 ```bash
 # Install dependencies
 npm install
 
-# Start local development server
+# Run local development server
 npm run dev
 
-# Run automated tests (Vitest)
+# Run unit tests
 npm test
 
-# Build production bundle
+# Build production bundle for GitHub Pages
 npm run build
 ```
 
 ---
 
-## Deploying to GitHub Pages
+## GitHub Pages Deployment
 
-This repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that builds and publishes the web application to GitHub Pages automatically on push to `main`.
-
-1. Push this repository to GitHub.
-2. Go to your repository **Settings > Pages**.
-3. Under **Build and deployment > Source**, select **GitHub Actions**.
-4. Any commit pushed to `main` will automatically build and deploy the site.
-
----
-
-## Connecting Google Sheets & Shared Drive
-
-1. Create a spreadsheet in your team's Shared Google Drive.
-2. In Google Sheets, navigate to **Extensions > Apps Script**.
-3. Copy and paste the script from [`google-apps-script/Code.gs`](google-apps-script/Code.gs).
-4. Run `setupSpreadsheet()` once from the editor to initialize headers and sheet tabs (`Schedule` and `Backlog & Sizing`).
-5. Click **Deploy > New deployment > Web app**:
-   - Execute as: **User accessing the web app** or **Me**
-   - Who has access: **Anyone within your domain** or **Anyone**
-6. Copy the resulting Web App URL.
-7. Open the USST Master Schedule web app, click **⚙ Google Sheets**, paste the Web App URL, and click **Save Configuration**.
-8. Use **Pull from Google Sheets** and **Push Changes to Sheets** to sync bi-directionally.
-
----
-
-## Architecture & Code Organization
-
-- `src/types/`: Domain TypeScript models (`ScheduleTask`, `BacklogItem`, `CategoryFilterState`, `GoogleSyncConfig`).
-- `src/domain/`: Pure domain logic (`schedule-graph.ts`, `date-utils.ts`). Pure calculations with no DOM or framework dependencies.
-- `src/services/`: Boundary adapters (`sheets-adapter.ts` for row/CSV mapping, `google-sync.ts` for network calls).
-- `src/components/`: Modular UI views (`GanttChart`, `CalendarView`, `BacklogView`, `TaskModal`, `SyncModal`).
-- `src/styles/`: Rocketry dark design system (`main.css`) using vanilla CSS custom properties.
-- `tests/`: Automated unit tests for graph shifting, dependency propagation, date math, and sheets adapter.
+The repository includes a GitHub Actions workflow in `.github/workflows/deploy.yml`. Every push to `main` runs unit tests, compiles the production bundle, and publishes the site to GitHub Pages.

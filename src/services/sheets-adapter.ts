@@ -206,7 +206,7 @@ function parseCsvLine(line: string): string[] {
 }
 
 function isValidCategory(cat: string): cat is TaskCategory {
-  return ['avionics-hw', 'avionics-sw', 'milestone', 'university', 'work-session'].includes(cat);
+  return ['avionics-hw', 'avionics-sw', 'milestone', 'university'].includes(cat);
 }
 
 function normalizeDateString(val: string | number | undefined): string {

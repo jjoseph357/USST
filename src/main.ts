@@ -4,17 +4,16 @@ import { SEED_TASKS, SEED_BACKLOG } from './data/seed-schedule';
 import { GanttChart, GanttZoom } from './components/gantt-chart';
 import { CalendarView } from './components/calendar-view';
 import { BacklogView } from './components/backlog-view';
-import { TaskModal } from './components/task-modal';
-import { SyncModal } from './components/sync-modal';
+import { TaskInspectorModal } from './components/task-inspector-modal';
+import { SetupModal } from './components/setup-modal';
 import { exportTasksToCsv, parseTasksFromCsv } from './services/sheets-adapter';
 import {
   loadSyncConfig,
-  fetchScheduleFromAppsScript,
-  pushScheduleToAppsScript
+  fetchScheduleFromAppsScript
 } from './services/google-sync';
 
-const TASKS_STORAGE_KEY = 'usst_avionics_tasks';
-const BACKLOG_STORAGE_KEY = 'usst_avionics_backlog';
+const TASKS_STORAGE_KEY = 'usst_avionics_tasks_v2';
+const BACKLOG_STORAGE_KEY = 'usst_avionics_backlog_v2';
 
 class App {
   private tasks: ScheduleTask[] = [];
@@ -24,8 +23,7 @@ class App {
     'avionics-hw': true,
     'avionics-sw': true,
     'milestone': true,
-    'university': true,
-    'work-session': true
+    'university': true
   };
 
   private currentZoom: GanttZoom = 'week';
@@ -33,8 +31,8 @@ class App {
   private gantt!: GanttChart;
   private calendar!: CalendarView;
   private backlogView!: BacklogView;
-  private taskModal!: TaskModal;
-  private syncModal!: SyncModal;
+  private inspectorModal!: TaskInspectorModal;
+  private setupModal!: SetupModal;
 
   constructor() {
     this.loadState();
@@ -77,20 +75,16 @@ class App {
   }
 
   private initUI() {
-    // 1. Initialize views
+    this.inspectorModal = new TaskInspectorModal();
+
     const ganttContainer = document.getElementById('gantt-container') as HTMLElement;
     this.gantt = new GanttChart({
       container: ganttContainer,
       tasks: this.tasks,
       filters: this.filters,
       zoom: this.currentZoom,
-      onTaskChange: (updated) => {
-        this.tasks = updated;
-        this.saveTasks();
-        this.calendar.update(this.tasks, this.filters);
-      },
       onTaskSelect: (task) => {
-        this.taskModal.open(task, this.tasks);
+        this.inspectorModal.open(task, this.tasks);
       }
     });
 
@@ -100,47 +94,18 @@ class App {
       tasks: this.tasks,
       filters: this.filters,
       onTaskSelect: (task) => {
-        this.taskModal.open(task, this.tasks);
+        this.inspectorModal.open(task, this.tasks);
       }
     });
 
     const backlogContainer = document.getElementById('backlog-container') as HTMLElement;
     this.backlogView = new BacklogView({
       container: backlogContainer,
-      items: this.backlog,
-      onItemUpdate: (items) => {
-        this.backlog = items;
-        this.saveBacklog();
-      }
+      items: this.backlog
     });
 
-    // 2. Initialize Modals
-    this.taskModal = new TaskModal({
-      onSave: (task, isNew) => {
-        if (isNew) {
-          this.tasks.push(task);
-        } else {
-          const idx = this.tasks.findIndex(t => t.id === task.id);
-          if (idx !== -1) {
-            this.tasks[idx] = task;
-          }
-        }
-        this.saveTasks();
-        this.refreshAllViews();
-      },
-      onDelete: (taskId) => {
-        this.tasks = this.tasks.filter(t => t.id !== taskId);
-        // Also remove dependencies pointing to this task
-        this.tasks.forEach(t => {
-          t.dependencies = t.dependencies.filter(id => id !== taskId);
-        });
-        this.saveTasks();
-        this.refreshAllViews();
-      }
-    });
-
-    this.syncModal = new SyncModal({
-      onPull: async (config: GoogleSyncConfig) => {
+    this.setupModal = new SetupModal({
+      onSync: async (config: GoogleSyncConfig) => {
         const result = await fetchScheduleFromAppsScript(config.appsScriptUrl || '');
         if (result.tasks.length > 0) {
           this.tasks = result.tasks;
@@ -151,11 +116,7 @@ class App {
           this.saveBacklog();
         }
         this.refreshAllViews();
-        this.setSyncStatus('synced', 'Synced with Sheets');
-      },
-      onPush: async (config: GoogleSyncConfig) => {
-        await pushScheduleToAppsScript(config.appsScriptUrl || '', this.tasks, this.backlog);
-        this.setSyncStatus('synced', 'Synced with Sheets');
+        this.setSyncStatus('synced', 'Connected');
       },
       onExportCsv: () => {
         const csv = exportTasksToCsv(this.tasks);
@@ -163,7 +124,7 @@ class App {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `usst-avionics-schedule-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `usst-schedule-${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
       },
@@ -174,17 +135,10 @@ class App {
           this.saveTasks();
           this.refreshAllViews();
         }
-      },
-      onResetSeed: () => {
-        this.tasks = [...SEED_TASKS];
-        this.backlog = [...SEED_BACKLOG];
-        this.saveTasks();
-        this.saveBacklog();
-        this.refreshAllViews();
       }
     });
 
-    // 3. Navigation tabs
+    // Navigation tabs
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -193,7 +147,7 @@ class App {
       });
     });
 
-    // 4. Filter checkboxes
+    // Filter chips
     const bindFilter = (id: string, key: keyof CategoryFilterState) => {
       const checkbox = document.getElementById(id) as HTMLInputElement;
       checkbox?.addEventListener('change', () => {
@@ -206,9 +160,8 @@ class App {
     bindFilter('filter-sw', 'avionics-sw');
     bindFilter('filter-milestone', 'milestone');
     bindFilter('filter-university', 'university');
-    bindFilter('filter-session', 'work-session');
 
-    // 5. Zoom buttons
+    // Zoom buttons
     const zoomBtns = document.querySelectorAll('.zoom-btn');
     zoomBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -219,13 +172,37 @@ class App {
       });
     });
 
-    // 6. Action buttons
-    document.getElementById('btn-add-task')?.addEventListener('click', () => {
-      this.taskModal.open(null, this.tasks);
+    // Action buttons
+    document.getElementById('btn-open-setup')?.addEventListener('click', () => {
+      this.setupModal.open();
     });
 
-    document.getElementById('btn-open-sync')?.addEventListener('click', () => {
-      this.syncModal.open();
+    document.getElementById('btn-banner-guide')?.addEventListener('click', () => {
+      this.setupModal.open();
+    });
+
+    document.getElementById('btn-refresh-sheet')?.addEventListener('click', async () => {
+      const config = loadSyncConfig();
+      if (!config.appsScriptUrl) {
+        this.setupModal.open();
+        return;
+      }
+      this.setSyncStatus('syncing', 'Updating...');
+      try {
+        const result = await fetchScheduleFromAppsScript(config.appsScriptUrl);
+        if (result.tasks.length > 0) {
+          this.tasks = result.tasks;
+          this.saveTasks();
+        }
+        if (result.backlog.length > 0) {
+          this.backlog = result.backlog;
+          this.saveBacklog();
+        }
+        this.refreshAllViews();
+        this.setSyncStatus('synced', 'Connected');
+      } catch (err) {
+        this.setSyncStatus('error', 'Sync Failed');
+      }
     });
   }
 
@@ -241,7 +218,6 @@ class App {
     const targetSec = document.getElementById(`view-${view}`);
     if (targetSec) targetSec.classList.add('active');
 
-    // Toggle zoom controls visibility
     const zoomControls = document.getElementById('gantt-zoom-controls');
     if (zoomControls) {
       zoomControls.style.display = view === 'gantt' ? 'flex' : 'none';
@@ -265,9 +241,9 @@ class App {
   private initSyncStatus() {
     const config = loadSyncConfig();
     if (config.appsScriptUrl) {
-      this.setSyncStatus('offline', 'Connected to Sheets');
+      this.setSyncStatus('synced', 'Connected');
     } else {
-      this.setSyncStatus('offline', 'Local Storage');
+      this.setSyncStatus('offline', 'Local Baseline');
     }
   }
 
@@ -283,7 +259,6 @@ class App {
   }
 }
 
-// Start application
 window.addEventListener('DOMContentLoaded', () => {
   new App();
 });

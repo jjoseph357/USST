@@ -1,134 +1,51 @@
 import { ScheduleTask, BacklogItem, CapacityModel } from '../types/schedule';
 
 export const SEED_TASKS: ScheduleTask[] = [
-  // Avionics Hardware & Onboarding
+  // Fall Term: Onboarding & Hardware Design
   {
     id: 'recruitment',
     title: 'Recruitment & Mini Projects',
     category: 'avionics-hw',
     startDate: '2026-09-01',
     endDate: '2026-09-30',
-    progress: 100,
+    progress: 0,
     dependencies: [],
     assignees: ['Team Leads'],
-    notes: 'HW & SW mini projects for onboarding new recruits.'
+    notes: 'Hardware and software onboarding mini projects for new recruits.'
   },
   {
     id: 'requirements',
-    title: 'Requirements Gathering',
+    title: 'Requirements Gathering & System Constraints',
     category: 'avionics-hw',
     startDate: '2026-09-01',
     endDate: '2026-09-30',
-    progress: 100,
+    progress: 0,
     dependencies: [],
     assignees: ['Systems Engineering'],
-    notes: 'Subsystem requirement specs & vehicle interface constraints.'
+    notes: 'Vehicle interface constraints and power subsystem specifications.'
   },
-  {
-    id: 'switch-power',
-    title: 'Switch & Power Architecture Design',
-    category: 'avionics-hw',
-    startDate: '2026-10-01',
-    endDate: '2026-10-20',
-    progress: 80,
-    dependencies: ['requirements'],
-    assignees: ['Power Team'],
-    notes: 'Detailed design of latching switches, supercaps, and dual USB/battery power path.'
-  },
-  {
-    id: 'hw-freeze',
-    title: 'Hardware Design Freeze',
-    category: 'milestone',
-    startDate: '2026-10-21',
-    endDate: '2026-12-31',
-    progress: 40,
-    dependencies: ['switch-power'],
-    assignees: ['All Hardware Members'],
-    notes: 'Final schematic & layout review; ready for PCB fab spin 1.',
-    isMilestone: true
-  },
-  {
-    id: 'power-testing',
-    title: 'Power Testing',
-    category: 'avionics-hw',
-    startDate: '2027-01-15',
-    endDate: '2027-02-28',
-    progress: 0,
-    dependencies: ['hw-freeze'],
-    assignees: ['Power Team'],
-    notes: 'Bench validation, rail stability, USB/battery power-path, supercaps.'
-  },
-
-  // Avionics Software
-  {
-    id: 'sw-freeze',
-    title: 'Software Feature Freeze',
-    category: 'milestone',
-    startDate: '2027-01-05',
-    endDate: '2027-04-30',
-    progress: 25,
-    dependencies: ['requirements'],
-    assignees: ['Software Team'],
-    notes: 'Feature freeze (UKF, Zephyr, ground station, radio library).',
-    isMilestone: true
-  },
-  {
-    id: 'radio-testing',
-    title: 'Radio Testing (GPS + Telemetry)',
-    category: 'avionics-sw',
-    startDate: '2027-05-01',
-    endDate: '2027-05-30',
-    progress: 0,
-    dependencies: ['sw-freeze', 'power-testing'],
-    assignees: ['RF Team', 'Software Team'],
-    notes: 'Range checks, GPS acquisition, LoRa/downlink validation.'
-  },
-  {
-    id: 'srad-fc-testing',
-    title: 'SRAD FC Testing',
-    category: 'avionics-sw',
-    startDate: '2027-05-15',
-    endDate: '2027-06-30',
-    progress: 0,
-    dependencies: ['sw-freeze', 'power-testing'],
-    assignees: ['Avionics Leads'],
-    notes: 'Hardware-in-the-loop (HITL), pyro logic, recovery state machine.'
-  },
-  {
-    id: 'airframe-integration',
-    title: 'Airframe Integration & Testing',
-    category: 'avionics-hw',
-    startDate: '2027-06-01',
-    endDate: '2027-06-30',
-    progress: 0,
-    dependencies: ['srad-fc-testing', 'radio-testing'],
-    assignees: ['Mechanical Team', 'Avionics Leads'],
-    notes: 'Integrated stack testing inside avionics bay, vacuum and shake tests.'
-  },
-  {
-    id: 'harnessing',
-    title: 'Harnessing & Final Vehicle Routing',
-    category: 'avionics-hw',
-    startDate: '2027-06-25',
-    endDate: '2027-07-15',
-    progress: 0,
-    dependencies: ['airframe-integration'],
-    assignees: ['Electrical Leads'],
-    notes: 'Final vehicle wiring harnesses, crimping, strain relief, airframe routing.'
-  },
-
-  // Formal Reviews
   {
     id: 'idr-review',
     title: 'Initial Design Review (IDR)',
     category: 'milestone',
     startDate: '2026-09-25',
     endDate: '2026-09-25',
-    progress: 100,
+    progress: 0,
     dependencies: ['recruitment'],
-    assignees: ['Faculty Advisors', 'Leads'],
-    notes: 'Internal kickoff and baseline scope sign-off.',
+    assignees: ['Faculty Advisors', 'Team Leads'],
+    notes: 'Internal baseline scope review and requirement sign-off.',
     isMilestone: true
+  },
+  {
+    id: 'switch-power',
+    title: 'Switch & Power Architecture Design',
+    category: 'avionics-hw',
+    startDate: '2026-10-01',
+    endDate: '2026-10-25',
+    progress: 0,
+    dependencies: ['requirements'],
+    assignees: ['Power Team'],
+    notes: 'Detailed design of latching switches, supercaps, and dual USB/battery power path.'
   },
   {
     id: 'pdr-review',
@@ -136,10 +53,10 @@ export const SEED_TASKS: ScheduleTask[] = [
     category: 'milestone',
     startDate: '2026-11-15',
     endDate: '2026-11-15',
-    progress: 60,
+    progress: 0,
     dependencies: ['switch-power'],
-    assignees: ['Faculty Advisors', 'Executive'],
-    notes: 'Architecture freeze and component selection review.',
+    assignees: ['Faculty Advisors', 'Subsystem Leads'],
+    notes: 'Subsystem architecture freeze and component review.',
     isMilestone: true
   },
   {
@@ -151,7 +68,113 @@ export const SEED_TASKS: ScheduleTask[] = [
     progress: 0,
     dependencies: ['pdr-review'],
     assignees: ['Launch Canada Committee', 'Advisors'],
-    notes: 'Manufacturing clearance and risk mitigation.',
+    notes: 'Schematic sign-off and risk clearance before PCB spin 1 order.',
+    isMilestone: true
+  },
+  {
+    id: 'hw-freeze',
+    title: 'Hardware Design Freeze (PCB Spin 1)',
+    category: 'milestone',
+    startDate: '2026-10-26',
+    endDate: '2026-12-31',
+    progress: 0,
+    dependencies: ['switch-power'],
+    assignees: ['Hardware Team'],
+    notes: 'Final layout review and submission to fab house over December break.',
+    isMilestone: true
+  },
+
+  // Winter Term: Bring-up, Testing & Software
+  {
+    id: 'power-testing',
+    title: 'Power Subsystem Bring-up & Bench Testing',
+    category: 'avionics-hw',
+    startDate: '2027-01-01',
+    endDate: '2027-02-28',
+    progress: 0,
+    dependencies: ['hw-freeze'],
+    assignees: ['Power Team'],
+    notes: 'Bench validation of rail stability, dual-path USB/battery, and supercaps.'
+  },
+  {
+    id: 'sw-freeze',
+    title: 'Software Development & Feature Freeze',
+    category: 'milestone',
+    startDate: '2027-01-01',
+    endDate: '2027-04-30',
+    progress: 0,
+    dependencies: ['requirements'],
+    assignees: ['Software Team'],
+    notes: 'Core feature freeze for UKF state estimation, Zephyr migration, and ground station.',
+    isMilestone: true
+  },
+  {
+    id: 'sensor-integration',
+    title: 'Sensor & Payload Integration',
+    category: 'avionics-hw',
+    startDate: '2027-03-01',
+    endDate: '2027-04-30',
+    progress: 0,
+    dependencies: ['power-testing'],
+    assignees: ['Hardware Leads'],
+    notes: 'Integration of high-dynamic GPS module, camera latching triggers, and IMU validation.'
+  },
+
+  // Spring & Summer: Field Testing, Integration & Launch
+  {
+    id: 'radio-testing',
+    title: 'Radio Testing (GPS & Telemetry)',
+    category: 'avionics-sw',
+    startDate: '2027-05-01',
+    endDate: '2027-05-30',
+    progress: 0,
+    dependencies: ['sw-freeze', 'sensor-integration'],
+    assignees: ['RF Team', 'Software Team'],
+    notes: 'Outdoor range checks, GPS acquisition, and LoRa packet downlink checks.'
+  },
+  {
+    id: 'srad-fc-testing',
+    title: 'SRAD Flight Computer HITL Testing',
+    category: 'avionics-sw',
+    startDate: '2027-05-15',
+    endDate: '2027-06-30',
+    progress: 0,
+    dependencies: ['sw-freeze', 'sensor-integration'],
+    assignees: ['Flight Computer Leads'],
+    notes: 'Hardware-in-the-loop testing, pyro firing logic, and recovery state machine.'
+  },
+  {
+    id: 'airframe-integration',
+    title: 'Airframe Integration & Testing',
+    category: 'avionics-hw',
+    startDate: '2027-06-01',
+    endDate: '2027-06-30',
+    progress: 0,
+    dependencies: ['srad-fc-testing', 'radio-testing'],
+    assignees: ['Mechanical Team', 'Avionics Leads'],
+    notes: 'Integrated electronics sled stack fit inside avionics bay, shake and vacuum testing.'
+  },
+  {
+    id: 'harnessing',
+    title: 'Vehicle Harnessing & Final Routing',
+    category: 'avionics-hw',
+    startDate: '2027-06-25',
+    endDate: '2027-07-20',
+    progress: 0,
+    dependencies: ['airframe-integration'],
+    assignees: ['Electrical Leads'],
+    notes: 'Final vehicle wiring harnesses, crimping, strain relief, and bay routing.'
+  },
+  {
+    id: 'flight-readiness',
+    title: 'Flight Readiness Review (FRR)',
+    category: 'milestone',
+    startDate: '2027-07-21',
+    endDate: '2027-08-09',
+    progress: 0,
+    dependencies: ['harnessing'],
+    assignees: ['Entire USST Team'],
+    notes: 'Pre-launch sign-off, telemetry dashboard dry-run, and checklist review.',
     isMilestone: true
   },
   {
@@ -161,9 +184,9 @@ export const SEED_TASKS: ScheduleTask[] = [
     startDate: '2027-08-10',
     endDate: '2027-08-16',
     progress: 0,
-    dependencies: ['harnessing'],
+    dependencies: ['flight-readiness'],
     assignees: ['Whole USST Team'],
-    notes: 'Competition launch window and flight operations.',
+    notes: 'Flight operations, pad integration, and mission execution.',
     isMilestone: true
   },
 
@@ -177,18 +200,18 @@ export const SEED_TASKS: ScheduleTask[] = [
     progress: 0,
     dependencies: [],
     assignees: ['All Students'],
-    notes: 'University recess. Focused design sprint.'
+    notes: 'Academic break.'
   },
   {
     id: 'fall-exam-blackout',
-    title: 'Fall Final Exams (Blackout)',
+    title: 'Fall Final Exams Blackout',
     category: 'university',
     startDate: '2026-12-08',
     endDate: '2026-12-23',
     progress: 0,
     dependencies: [],
     assignees: ['All Students'],
-    notes: 'Zero team operations due to academic final examinations.'
+    notes: 'Zero team operations during final examination period.'
   },
   {
     id: 'winter-reading-week',
@@ -199,11 +222,11 @@ export const SEED_TASKS: ScheduleTask[] = [
     progress: 0,
     dependencies: [],
     assignees: ['All Students'],
-    notes: 'Midterm break. Power and bench testing sprint.'
+    notes: 'Academic break.'
   },
   {
     id: 'winter-exam-blackout',
-    title: 'Winter Final Exams (Blackout)',
+    title: 'Winter Final Exams Blackout',
     category: 'university',
     startDate: '2027-04-08',
     endDate: '2027-04-26',
@@ -211,75 +234,18 @@ export const SEED_TASKS: ScheduleTask[] = [
     dependencies: [],
     assignees: ['All Students'],
     notes: 'Exam blackout period prior to summer full-time operations.'
-  },
-
-  // Work Sessions
-  {
-    id: 'session-kickoff-hackathon',
-    title: 'Work Session: Kickoff Mini-Project Hackathon',
-    category: 'work-session',
-    startDate: '2026-09-12',
-    endDate: '2026-09-13',
-    progress: 100,
-    dependencies: [],
-    assignees: ['Recruits', 'Mentors'],
-    notes: 'Hands-on STM32 bring-up and toolchain setup.'
-  },
-  {
-    id: 'session-pcb-sprint',
-    title: 'Work Session: PCB Layout Crunch Sprint',
-    category: 'work-session',
-    startDate: '2026-11-07',
-    endDate: '2026-11-08',
-    progress: 0,
-    dependencies: [],
-    assignees: ['Hardware Team'],
-    notes: 'Routing power rails, supercapacitor footprint, and differential pairs.'
-  },
-  {
-    id: 'session-ground-station-sprint',
-    title: 'Work Session: Ground Station Web Sprint',
-    category: 'work-session',
-    startDate: '2027-01-23',
-    endDate: '2027-01-24',
-    progress: 0,
-    dependencies: [],
-    assignees: ['Software Team'],
-    notes: 'Telemetry packet decoder and live plotting interface.'
-  },
-  {
-    id: 'session-bay-fit-check',
-    title: 'Work Session: Avionics Bay Fit Check',
-    category: 'work-session',
-    startDate: '2027-03-20',
-    endDate: '2027-03-21',
-    progress: 0,
-    dependencies: [],
-    assignees: ['Hardware & Mechanical Leads'],
-    notes: '3D printed sled test and connector accessibility check.'
-  },
-  {
-    id: 'session-field-range-test',
-    title: 'Work Session: Field Telemetry Range Test',
-    category: 'work-session',
-    startDate: '2027-05-22',
-    endDate: '2027-05-23',
-    progress: 0,
-    dependencies: [],
-    assignees: ['RF & Operations'],
-    notes: 'Long range outdoor LoRa link validation with high gain antenna.'
   }
 ];
 
 export const SEED_BACKLOG: BacklogItem[] = [
-  // Software Backlog with sizing
+  // Software Backlog (Whiteboard 1)
   {
     id: 'sw-9',
     priority: '9',
     title: 'Zephyr exploration',
     subsystem: 'Software',
     sizingTerms: 2.0,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Evaluate migration from bare metal to Zephyr RTOS on STM32.'
   },
   {
@@ -297,7 +263,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     title: 'Radio lib change & maintenance',
     subsystem: 'Software',
     sizingTerms: 1.0,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Refactor radio driver for robust packet transmission.'
   },
   {
@@ -307,7 +273,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     subsystem: 'Software',
     sizingTerms: undefined,
     status: 'not-started',
-    notes: 'Finish legacy ground station testing utility.'
+    notes: 'Legacy ground station testing utility completion.'
   },
   {
     id: 'sw-5a',
@@ -316,7 +282,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     subsystem: 'Software',
     sizingTerms: 1.0,
     status: 'not-started',
-    notes: 'Inter-subsystem telemetry bridge.'
+    notes: 'Inter-subsystem telemetry communication bridge.'
   },
   {
     id: 'sw-3',
@@ -333,7 +299,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     title: 'Ground station -> Full-stack website',
     subsystem: 'Software',
     sizingTerms: 1.0,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Mission control telemetry dashboard and vehicle command interface.'
   },
   {
@@ -351,7 +317,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     title: 'General maintenance (HAL & Thread safety)',
     subsystem: 'Software',
     sizingTerms: undefined,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Hardware abstraction layer cleanup and mutex auditing.'
   },
   {
@@ -364,14 +330,14 @@ export const SEED_BACKLOG: BacklogItem[] = [
     notes: 'Independent hardware watchdog timer configuration.'
   },
 
-  // Hardware Backlog
+  // Hardware Backlog (Whiteboard 1)
   {
     id: 'hw-supercaps',
     priority: '1',
     title: 'Supercaps buffer integration',
     subsystem: 'Hardware',
     sizingTerms: 0.5,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Buffer rapid current spikes during pyro firing.'
   },
   {
@@ -407,7 +373,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     title: 'Prove STM32 MCU stability',
     subsystem: 'Hardware',
     sizingTerms: 0.3,
-    status: 'completed',
+    status: 'not-started',
     notes: 'Clock stability, voltage dips, and reset conditions.'
   },
   {
@@ -416,7 +382,7 @@ export const SEED_BACKLOG: BacklogItem[] = [
     title: 'Power subsystem budget & analysis',
     subsystem: 'Hardware',
     sizingTerms: 0.4,
-    status: 'in-progress',
+    status: 'not-started',
     notes: 'Thermal and current load modeling for flight duration.'
   }
 ];
