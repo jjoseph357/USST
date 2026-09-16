@@ -182,9 +182,9 @@ export class RecruitmentShowcase {
             </div>
           </div>
 
-          <div class="flight-player-wrapper">
-            <video id="flight-video-player" class="flight-video-player" playsinline controls preload="metadata" muted>
-              <source src="./videos/lc2026_launch.mp4#t=40" type="video/mp4" />
+          <div class="flight-player-wrapper" id="flight-player-wrapper">
+            <video id="flight-video-player" class="flight-video-player" playsinline webkit-playsinline controls preload="auto" muted>
+              <source src="./videos/lc2026_launch.mp4" type="video/mp4" />
               Your browser does not support HTML5 video.
             </video>
           </div>
@@ -193,9 +193,14 @@ export class RecruitmentShowcase {
             <div class="flight-feed-info" id="flight-feed-caption">
               <strong>CAM 1 (On-Board):</strong> Camera starts at 40s solid motor ignition. Notice vehicle ascent stability.
             </div>
-            <button class="btn btn-xs btn-outline" id="btn-replay-40">
-              ${getIconSvg('rotateCcw', 12)} Replay from 0:40
-            </button>
+            <div class="flight-actions-group">
+              <button class="btn btn-xs btn-outline" id="btn-replay-40" title="Replay key launch moment">
+                ${getIconSvg('rotateCcw', 12)} <span id="replay-btn-text">Replay from 0:40</span>
+              </button>
+              <button class="btn btn-xs btn-outline" id="btn-fullscreen" title="Toggle Fullscreen" aria-label="Fullscreen">
+                ${getIconSvg('maximize', 12)} <span>Fullscreen</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -304,41 +309,98 @@ export class RecruitmentShowcase {
     `;
   }
 
+  private getFeedStartTime(feed: 'rocket' | 'livestream' | 'ground'): number {
+    if (feed === 'rocket') return 40;
+    if (feed === 'ground') return 34;
+    return 0;
+  }
+
+  private toggleFullscreen(videoEl: HTMLVideoElement) {
+    const el = videoEl as any;
+    const doc = document as any;
+
+    if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      }
+      return;
+    }
+
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {
+        if (el.webkitEnterFullscreen) {
+          el.webkitEnterFullscreen();
+        }
+      });
+    } else if (el.webkitEnterFullscreen) {
+      // iOS Safari native video fullscreen
+      el.webkitEnterFullscreen();
+    } else if (el.webkitRequestFullscreen) {
+      el.webkitRequestFullscreen();
+    } else if (el.msRequestFullscreen) {
+      el.msRequestFullscreen();
+    }
+  }
+
   private bindVideoEvents() {
     const player = this.container.querySelector('#flight-video-player') as HTMLVideoElement | null;
+    const playerWrapper = this.container.querySelector('#flight-player-wrapper') as HTMLElement | null;
     const caption = this.container.querySelector('#flight-feed-caption');
     const replayBtn = this.container.querySelector('#btn-replay-40') as HTMLElement | null;
+    const replayBtnText = this.container.querySelector('#replay-btn-text') as HTMLElement | null;
+    const fullscreenBtn = this.container.querySelector('#btn-fullscreen') as HTMLElement | null;
 
     if (!player) return;
 
+    let hasInitialSeek = false;
+
     const enforceStartTime = () => {
-      if (this.activeCameraFeed === 'rocket' && player.currentTime < 40) {
-        player.currentTime = 40;
-      } else if (this.activeCameraFeed === 'ground' && player.currentTime < 34) {
-        player.currentTime = 34;
+      const start = this.getFeedStartTime(this.activeCameraFeed);
+      if (!hasInitialSeek && start > 0) {
+        try {
+          player.currentTime = start;
+          hasInitialSeek = true;
+        } catch {
+          // Video element not ready to seek yet
+        }
       }
     };
 
     player.addEventListener('loadedmetadata', enforceStartTime);
+    player.addEventListener('canplay', enforceStartTime);
+
+    // Prevent black screen on mobile when video reaches the end:
+    // Reset back to feed start time so the visual keyframe is restored.
+    player.addEventListener('ended', () => {
+      const start = this.getFeedStartTime(this.activeCameraFeed);
+      player.pause();
+      player.currentTime = start;
+    });
+
     player.addEventListener('play', () => {
-      if (this.activeCameraFeed === 'rocket' && player.currentTime < 39.5) {
-        player.currentTime = 40;
-      } else if (this.activeCameraFeed === 'ground' && player.currentTime < 33.5) {
-        player.currentTime = 34;
+      const start = this.getFeedStartTime(this.activeCameraFeed);
+      if (player.ended || (player.duration && player.currentTime >= player.duration - 0.5)) {
+        player.currentTime = start;
+      } else if (start > 0 && player.currentTime < start - 0.5) {
+        player.currentTime = start;
       }
     });
 
     replayBtn?.addEventListener('click', () => {
-      if (this.activeCameraFeed === 'rocket') {
-        player.currentTime = 40;
-        player.play().catch(() => {});
-      } else if (this.activeCameraFeed === 'ground') {
-        player.currentTime = 34;
-        player.play().catch(() => {});
-      } else {
-        player.currentTime = 0;
-        player.play().catch(() => {});
-      }
+      const start = this.getFeedStartTime(this.activeCameraFeed);
+      player.currentTime = start;
+      player.play().catch(() => {});
+    });
+
+    fullscreenBtn?.addEventListener('click', () => {
+      this.toggleFullscreen(player);
+    });
+
+    player.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      this.toggleFullscreen(player);
     });
 
     // Cam Tab switcher
@@ -348,22 +410,27 @@ export class RecruitmentShowcase {
         if (!feed || feed === this.activeCameraFeed) return;
 
         this.activeCameraFeed = feed;
+        hasInitialSeek = false;
 
         this.container.querySelectorAll('.cam-tab-btn').forEach(b => {
           b.classList.toggle('active', b.getAttribute('data-feed') === feed);
         });
 
+        if (playerWrapper) {
+          playerWrapper.classList.toggle('portrait-mode', feed === 'ground');
+        }
+
         if (feed === 'rocket') {
-          player.src = './videos/lc2026_launch.mp4#t=40';
+          player.src = './videos/lc2026_launch.mp4';
           player.muted = true;
           player.load();
           if (caption) {
             caption.innerHTML = '<strong>CAM 1 (On-Board):</strong> Camera starts at 40s solid motor ignition. Notice vehicle ascent stability.';
           }
-          if (replayBtn) {
-            replayBtn.style.display = 'inline-flex';
-            replayBtn.innerHTML = `${getIconSvg('rotateCcw', 12)} Replay from 0:40`;
+          if (replayBtnText) {
+            replayBtnText.textContent = 'Replay from 0:40';
           }
+          if (replayBtn) replayBtn.style.display = 'inline-flex';
         } else if (feed === 'livestream') {
           player.src = './videos/ScreenRecording_08-17-2026%2018-50-51_1.mov';
           player.muted = false;
@@ -371,18 +438,21 @@ export class RecruitmentShowcase {
           if (caption) {
             caption.innerHTML = '<strong>CAM 2 (Livestream):</strong> Official Launch Canada broadcast stream tracking launch countdown and flight.';
           }
-          if (replayBtn) replayBtn.style.display = 'none';
+          if (replayBtnText) {
+            replayBtnText.textContent = 'Restart video';
+          }
+          if (replayBtn) replayBtn.style.display = 'inline-flex';
         } else if (feed === 'ground') {
-          player.src = './videos/IMG_8186.MOV#t=34';
+          player.src = './videos/IMG_8186.MOV';
           player.muted = false;
           player.load();
           if (caption) {
             caption.innerHTML = '<strong>CAM 3 (Ground Optical):</strong> Spectator pad tracking and audio recorded from the launch range (starts @ 34s).';
           }
-          if (replayBtn) {
-            replayBtn.style.display = 'inline-flex';
-            replayBtn.innerHTML = `${getIconSvg('rotateCcw', 12)} Replay from 0:34`;
+          if (replayBtnText) {
+            replayBtnText.textContent = 'Replay from 0:34';
           }
+          if (replayBtn) replayBtn.style.display = 'inline-flex';
         }
       });
     });

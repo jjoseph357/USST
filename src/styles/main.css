@@ -841,6 +841,16 @@ body {
   background: #000000;
   max-height: 480px;
   width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: aspect-ratio 0.2s ease, max-height 0.2s ease;
+}
+
+.flight-player-wrapper.portrait-mode {
+  aspect-ratio: 4 / 3;
+  max-height: 520px;
 }
 
 .flight-video-player {
@@ -848,6 +858,7 @@ body {
   height: 100%;
   display: block;
   object-fit: contain;
+  background: #000000;
 }
 
 .flight-player-footer {
@@ -863,6 +874,30 @@ body {
 
 .flight-feed-info {
   color: var(--text-body);
+}
+
+.flight-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .flight-player-wrapper.portrait-mode {
+    aspect-ratio: 9 / 13;
+    max-height: 460px;
+  }
+
+  .flight-player-footer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .flight-actions-group {
+    justify-content: flex-end;
+  }
 }
 
 /* ==========================================================================
