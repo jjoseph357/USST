@@ -1,19 +1,22 @@
 import './styles/main.css';
-import { ScheduleTask, BacklogItem, CategoryFilterState, GoogleSyncConfig } from './types/schedule';
+import {
+  ScheduleTask,
+  BacklogItem,
+  CategoryFilterState
+} from './types/schedule';
 import { SEED_TASKS, SEED_BACKLOG } from './data/seed-schedule';
-import { GanttChart, GanttZoom } from './components/gantt-chart';
-import { CalendarView } from './components/calendar-view';
+import { RecruitmentShowcase } from './components/recruitment-showcase';
+import { RoadmapView } from './components/roadmap-view';
 import { BacklogView } from './components/backlog-view';
 import { TaskInspectorModal } from './components/task-inspector-modal';
-import { SetupModal } from './components/setup-modal';
-import { exportTasksToCsv, parseTasksFromCsv } from './services/sheets-adapter';
-import {
-  loadSyncConfig,
-  fetchScheduleFromAppsScript
-} from './services/google-sync';
+import { QrModal } from './components/qr-modal';
+import { GuideModal } from './components/guide-modal';
+import { getIconSvg } from './utils/icons';
 
-const TASKS_STORAGE_KEY = 'usst_avionics_tasks_v2';
-const BACKLOG_STORAGE_KEY = 'usst_avionics_backlog_v2';
+const TASKS_STORAGE_KEY = 'usst_avionics_tasks_v5';
+const BACKLOG_STORAGE_KEY = 'usst_avionics_backlog_v5';
+
+type AppView = 'recruitment' | 'roadmap' | 'backlog';
 
 class App {
   private tasks: ScheduleTask[] = [];
@@ -26,18 +29,28 @@ class App {
     'university': true
   };
 
-  private currentZoom: GanttZoom = 'week';
+  private currentView: AppView = 'recruitment';
+  private isBoothMode = false;
 
-  private gantt!: GanttChart;
-  private calendar!: CalendarView;
+  private recruitmentShowcase!: RecruitmentShowcase;
+  private roadmapView!: RoadmapView;
   private backlogView!: BacklogView;
   private inspectorModal!: TaskInspectorModal;
-  private setupModal!: SetupModal;
+  private qrModal!: QrModal;
+  private guideModal!: GuideModal;
+
+  public getCurrentView(): AppView {
+    return this.currentView;
+  }
+
+  public getRecruitmentShowcase(): RecruitmentShowcase {
+    return this.recruitmentShowcase;
+  }
 
   constructor() {
     this.loadState();
     this.initUI();
-    this.initSyncStatus();
+    this.handleRoute();
   }
 
   private loadState() {
@@ -76,137 +89,119 @@ class App {
 
   private initUI() {
     this.inspectorModal = new TaskInspectorModal();
+    this.qrModal = new QrModal();
+    this.guideModal = new GuideModal((view) => this.switchView(view));
 
-    const ganttContainer = document.getElementById('gantt-container') as HTMLElement;
-    this.gantt = new GanttChart({
-      container: ganttContainer,
+    // 1. Initialize Recruitment Showcase
+    const recruitmentContainer = document.getElementById('recruitment-container') as HTMLElement;
+    this.recruitmentShowcase = new RecruitmentShowcase({
+      container: recruitmentContainer,
+      onNavigateToView: (view, filterTrack) => {
+        if (view === 'roadmap') {
+          this.switchView('roadmap');
+          window.location.hash = '#roadmap';
+        } else if (view === 'backlog') {
+          this.switchView('backlog');
+          window.location.hash = '#backlog';
+          if (filterTrack) {
+            this.backlogView.filterByTrackOrSubsystem(filterTrack);
+          }
+        }
+      },
+      onOpenQrModal: () => {
+        this.qrModal.open();
+      }
+    });
+
+    // 2. Initialize Roadmap View
+    const roadmapContainer = document.getElementById('roadmap-container') as HTMLElement;
+    this.roadmapView = new RoadmapView({
+      container: roadmapContainer,
       tasks: this.tasks,
       filters: this.filters,
-      zoom: this.currentZoom,
       onTaskSelect: (task) => {
         this.inspectorModal.open(task, this.tasks);
       }
     });
 
-    const calendarContainer = document.getElementById('calendar-container') as HTMLElement;
-    this.calendar = new CalendarView({
-      container: calendarContainer,
-      tasks: this.tasks,
-      filters: this.filters,
-      onTaskSelect: (task) => {
-        this.inspectorModal.open(task, this.tasks);
-      }
-    });
-
+    // 3. Initialize Backlog View
     const backlogContainer = document.getElementById('backlog-container') as HTMLElement;
     this.backlogView = new BacklogView({
       container: backlogContainer,
-      items: this.backlog
-    });
-
-    this.setupModal = new SetupModal({
-      onSync: async (config: GoogleSyncConfig) => {
-        const result = await fetchScheduleFromAppsScript(config.appsScriptUrl || '');
-        if (result.tasks.length > 0) {
-          this.tasks = result.tasks;
-          this.saveTasks();
-        }
-        if (result.backlog.length > 0) {
-          this.backlog = result.backlog;
-          this.saveBacklog();
-        }
-        this.refreshAllViews();
-        this.setSyncStatus('synced', 'Connected');
+      items: this.backlog,
+      onTaskSelect: (item) => {
+        this.inspectorModal.openBacklogItem(item);
       },
-      onExportCsv: () => {
-        const csv = exportTasksToCsv(this.tasks);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `usst-schedule-${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      },
-      onImportCsv: (csvText: string) => {
-        const imported = parseTasksFromCsv(csvText);
-        if (imported.length > 0) {
-          this.tasks = imported;
-          this.saveTasks();
-          this.refreshAllViews();
-        }
+      onNavigateToRoadmap: () => {
+        this.switchView('roadmap');
+        window.location.hash = '#roadmap';
       }
     });
 
-    // Navigation tabs
-    const tabs = document.querySelectorAll('.tab-btn');
-    tabs.forEach(tab => {
+    // Wire Navigation Tabs
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(tab => {
       tab.addEventListener('click', () => {
-        const view = tab.getAttribute('data-view') as 'gantt' | 'calendar' | 'backlog';
-        this.switchView(view);
-      });
-    });
-
-    // Filter chips
-    const bindFilter = (id: string, key: keyof CategoryFilterState) => {
-      const checkbox = document.getElementById(id) as HTMLInputElement;
-      checkbox?.addEventListener('change', () => {
-        this.filters[key] = checkbox.checked;
-        this.refreshAllViews();
-      });
-    };
-
-    bindFilter('filter-hw', 'avionics-hw');
-    bindFilter('filter-sw', 'avionics-sw');
-    bindFilter('filter-milestone', 'milestone');
-    bindFilter('filter-university', 'university');
-
-    // Zoom buttons
-    const zoomBtns = document.querySelectorAll('.zoom-btn');
-    zoomBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        zoomBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.currentZoom = btn.getAttribute('data-zoom') as GanttZoom;
-        this.gantt.update(this.tasks, this.filters, this.currentZoom);
-      });
-    });
-
-    // Action buttons
-    document.getElementById('btn-open-setup')?.addEventListener('click', () => {
-      this.setupModal.open();
-    });
-
-    document.getElementById('btn-banner-guide')?.addEventListener('click', () => {
-      this.setupModal.open();
-    });
-
-    document.getElementById('btn-refresh-sheet')?.addEventListener('click', async () => {
-      const config = loadSyncConfig();
-      if (!config.appsScriptUrl) {
-        this.setupModal.open();
-        return;
-      }
-      this.setSyncStatus('syncing', 'Updating...');
-      try {
-        const result = await fetchScheduleFromAppsScript(config.appsScriptUrl);
-        if (result.tasks.length > 0) {
-          this.tasks = result.tasks;
-          this.saveTasks();
+        const view = tab.getAttribute('data-view') as AppView;
+        if (view) {
+          this.switchView(view);
+          window.location.hash = `#${view}`;
         }
-        if (result.backlog.length > 0) {
-          this.backlog = result.backlog;
-          this.saveBacklog();
-        }
-        this.refreshAllViews();
-        this.setSyncStatus('synced', 'Connected');
-      } catch (err) {
-        this.setSyncStatus('error', 'Sync Failed');
+      });
+    });
+
+    // Wire Brand link
+    document.getElementById('brand-home-link')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.switchView('recruitment');
+      window.location.hash = '#recruitment';
+    });
+
+    // Wire Header Guide button
+    document.getElementById('btn-header-guide')?.addEventListener('click', () => {
+      this.guideModal.open(this.currentView === 'recruitment' ? 'recruitment' : 'work-session');
+    });
+
+    // Wire Header QR button
+    document.getElementById('btn-header-qr')?.addEventListener('click', () => {
+      this.qrModal.open();
+    });
+
+    // Wire Booth Mode toggle
+    const boothBtn = document.getElementById('btn-toggle-booth-mode');
+    boothBtn?.addEventListener('click', () => {
+      this.toggleBoothMode();
+    });
+
+    // Keyboard shortcut: 'P' or 'p' for Booth Mode
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'p' || e.key === 'P') && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement).tagName)) {
+        this.toggleBoothMode();
       }
     });
+
+    // Wire banner buttons
+    document.getElementById('btn-banner-starter')?.addEventListener('click', () => {
+      this.switchView('backlog');
+      window.location.hash = '#backlog';
+      this.backlogView.filterByTrackOrSubsystem('starter');
+    });
+
+    document.getElementById('btn-banner-roadmap')?.addEventListener('click', () => {
+      this.switchView('roadmap');
+      window.location.hash = '#roadmap';
+    });
+
+    // Update Footer Year
+    const yearEl = document.getElementById('current-year');
+    if (yearEl) {
+      yearEl.textContent = new Date().getFullYear().toString();
+    }
   }
 
-  private switchView(view: 'gantt' | 'calendar' | 'backlog') {
+  private switchView(view: AppView) {
+    this.currentView = view;
+
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.getAttribute('data-view') === view);
     });
@@ -218,44 +213,63 @@ class App {
     const targetSec = document.getElementById(`view-${view}`);
     if (targetSec) targetSec.classList.add('active');
 
-    const zoomControls = document.getElementById('gantt-zoom-controls');
-    if (zoomControls) {
-      zoomControls.style.display = view === 'gantt' ? 'flex' : 'none';
+    const workBanner = document.getElementById('work-session-banner');
+    if (workBanner) {
+      workBanner.style.display = view === 'recruitment' ? 'none' : 'block';
     }
 
-    if (view === 'gantt') {
-      this.gantt.render();
-    } else if (view === 'calendar') {
-      this.calendar.render();
+    if (view === 'recruitment') {
+      // Showcase view
+    } else if (view === 'roadmap') {
+      this.roadmapView.render();
     } else if (view === 'backlog') {
       this.backlogView.render();
     }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  private refreshAllViews() {
-    this.gantt.update(this.tasks, this.filters, this.currentZoom);
-    this.calendar.update(this.tasks, this.filters);
-    this.backlogView.update(this.backlog);
-  }
+  private toggleBoothMode() {
+    this.isBoothMode = !this.isBoothMode;
+    document.body.classList.toggle('booth-mode', this.isBoothMode);
 
-  private initSyncStatus() {
-    const config = loadSyncConfig();
-    if (config.appsScriptUrl) {
-      this.setSyncStatus('synced', 'Connected');
-    } else {
-      this.setSyncStatus('offline', 'Local Baseline');
+    const boothBtn = document.getElementById('btn-toggle-booth-mode');
+    if (boothBtn) {
+      boothBtn.innerHTML = this.isBoothMode
+        ? `${getIconSvg('x', 14)} <span>Exit Booth</span>`
+        : `${getIconSvg('monitor', 14)} <span>Booth Mode</span>`;
+      boothBtn.classList.toggle('btn-primary', this.isBoothMode);
+    }
+
+    if (this.isBoothMode && document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {
+        // Fullscreen may require explicit user gesture
+      });
     }
   }
 
-  private setSyncStatus(state: 'synced' | 'syncing' | 'error' | 'offline', label: string) {
-    const dot = document.getElementById('sync-status-dot');
-    const text = document.getElementById('sync-status-text');
-    if (dot) {
-      dot.className = `status-dot ${state}`;
-    }
-    if (text) {
-      text.textContent = label;
-    }
+  private handleRoute() {
+    const applyRoute = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase();
+      if (hash === 'roadmap' || hash === 'phases') {
+        this.switchView('roadmap');
+      } else if (hash === 'backlog') {
+        this.switchView('backlog');
+      } else if (hash === 'kiosk' || hash === 'booth') {
+        this.switchView('recruitment');
+        if (!this.isBoothMode) {
+          this.toggleBoothMode();
+        }
+      } else {
+        this.switchView('recruitment');
+        if (this.isBoothMode && hash !== 'kiosk' && hash !== 'booth') {
+          this.toggleBoothMode();
+        }
+      }
+    };
+
+    applyRoute();
+    window.addEventListener('hashchange', applyRoute);
   }
 }
 

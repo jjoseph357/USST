@@ -1,95 +1,60 @@
-# USST Avionics Master Schedule
+# USST Avionics Division
 
-Master schedule and engineering backlog web application for the University Student Space Team (USST) Avionics division preparing for Launch Canada 2027.
+Web platform for the University of Saskatchewan Space Team (USST) Avionics Division competing in Launch Canada 2027 (August 10–16, 2027).
 
-The Google Sheet in your shared drive is the primary source of truth for all schedule dates and milestones. The website presents the timeline, Gantt chart, calendar, and workforce capacity model.
+## What the site is for
 
----
+The platform has two distinct roles:
 
-## Google Sheets Setup Instructions
+### 1. Recruitment events (booth display)
+- **Launch Canada flight footage:** Synchronized video theater with on-board rocket camera (starts automatically at 0:40 solid motor ignition), official competition livestream, and ground optical tracking.
+- **Interactive role matcher:** Filter by major (Electrical, Computer Engineering, Computer Science, Physics/Math, Mechanical) or year of study to see starter mini-projects.
+- **Architecture shift:** Overview of transitioning from commercial Teensy breakout boards to a custom multi-layer STM32 PCB, deterministic Zephyr RTOS, Unscented Kalman Filtering (UKF), and 915 MHz LoRa downlinks.
+- **Starter mini-projects:** Guided onboarding projects designed for first and second year students with division mentor support.
+- **Meeting information:** Room 2C01 (Classroom) in the Engineering Building on Saturdays at 12:00 PM, plus mobile QR code for Discord.
+- **Booth mode:** Press `P` for full-screen kiosk display mode.
 
-Follow these steps to link your Google Sheet with the web application:
+### 2. Work sessions (engineering planning)
+- **7-phase mission roadmap:** Formal review gates (IDR, PDR, CDR, FRR) aligned with the university academic calendar and exam blackout periods.
+- **Technical backlog:** 22 tasks sized in member-terms (11.4 hardware + 7.6 software = 19.0 total member-terms) with discipline and priority filters.
+- **Capacity model:** Calculator estimating active members required per academic term to hit flight readiness.
+- **Task inspector:** Modal view with dependencies, deliverables, and assigned leads.
 
-1. **Create the Spreadsheet**
-   - Create a new Google Sheet inside your team's Shared Google Drive.
-   - Name it `USST Avionics Master Schedule`.
+## The 6 core subsystems
 
-2. **Add the Apps Script Backend**
-   - In the Google Sheet, open **Extensions > Apps Script**.
-   - Delete any default boilerplate in the code editor.
-   - Open [`google-apps-script/Code.gs`](google-apps-script/Code.gs) in this repository and paste its entire contents into the editor.
-   - In the toolbar dropdown, select `setupSpreadsheet` and click **Run**.
-   - Grant the one-time Google permission prompt.
-   - This populates two formatted sheets: `Schedule` (all deliverables and reviews) and `Backlog & Sizing` (subsystem priorities and student allocations).
+1. **Custom flight computer hardware:** Custom high-speed STM32 MCU/MPU PCB, impedance-matched differential routing, power rail bring-up.
+2. **Switch and power architecture:** Dual USB/battery power path, supercapacitor buffer for pyrotechnic charges, latching power circuits.
+3. **Flight software, navigation, and RTOS:** Zephyr RTOS migration, Unscented Kalman Filter state estimation, hardware-in-the-loop (HITL) simulator, watchdog timers.
+4. **RF communications and telemetry:** LoRa SX1262 915 MHz downlinks, high-dynamic GPS, and payload camera triggers.
+5. **Mission ground station and telemetry web:** Dedicated ground station receiver board and browser-based live telemetry dashboard.
+6. **Airframe and mechanical integration:** 3D printed avionics bay sled stack, vacuum chamber tests, vibration testing, and vehicle wire harnessing.
 
-3. **Deploy as a Web App**
-   - In Apps Script, click **Deploy > New deployment**.
-   - Click the gear icon next to "Select type" and choose **Web app**.
-   - Set **Execute as** to **Me** (your Google account).
-   - Set **Who has access** to **Anyone** (allows the static GitHub Pages app to read rows).
-   - Click **Deploy** and copy the generated **Web app URL**.
+## Development
 
-4. **Connect to the Web Application**
-   - Open the web application.
-   - Click **Connect Sheet** in the top navigation bar.
-   - Paste the Web app URL and click **Save & Fetch Schedule**.
-   - The web app will now sync with your Google Sheet.
+### Prerequisites
+- Node.js 20+
+- npm
 
-5. **Optional: Native Google Sheets Gantt View**
-   - In your Google Sheet, select the `Schedule` tab.
-   - In the top menu, click **Insert > Timeline**.
-   - Set the date range to **Start Date** and end date to **End Date**.
-   - Google Sheets will generate a native interactive Gantt chart directly inside the spreadsheet.
-
----
-
-## Modifying the Schedule
-
-- To alter task start dates, deadlines, dependencies, or assignees, edit the values in the Google Sheet.
-- Only members with Edit permissions on the Google Sheet in your Shared Google Drive can make changes.
-- Click **Refresh** in the web app header to pull the latest updates.
-
----
-
-## Features
-
-- **Gantt Timeline:**
-  - Clear horizontal timeline mapping deliverables and milestones from September kickoff through Launch Canada in August.
-  - Smooth dependency curves linking predecessors to successors.
-  - Scale toggle for Day, Week, and Month views.
-  - Diamond markers for design reviews (IDR, PDR, CDR, FRR) and design freezes.
-- **Monthly Calendar:**
-  - Standard month grid with event chips.
-  - Instant category filtering:
-    - Avionics Hardware
-    - Avionics Software
-    - Milestones & Reviews
-    - University Dates (Reading Weeks, Final Exam Blackouts)
-- **Technical Backlog & Sizing:**
-  - Software backlog sized in person-terms.
-  - Hardware backlog prioritized by power stability and sensor reliability.
-  - Live capacity model: Total Effort (9.0 person-terms) / Terms (2) = 4.5 active members required per term.
-
----
-
-## Development & Build
+### Commands
 
 ```bash
 # Install dependencies
 npm install
 
-# Run local development server
+# Run development server
 npm run dev
 
 # Run unit tests
 npm test
 
-# Build production bundle for GitHub Pages
+# Production build
 npm run build
+
+# Preview build
+npm run preview
 ```
 
----
+### Shortcuts
+- `P`: Toggle booth mode
+- `Esc`: Close open modal dialogs
 
-## GitHub Pages Deployment
-
-The repository includes a GitHub Actions workflow in `.github/workflows/deploy.yml`. Every push to `main` runs unit tests, compiles the production bundle, and publishes the site to GitHub Pages.
