@@ -62,7 +62,7 @@ export class TaskInspectorModal {
         </div>
         <div class="modal-body">
           <div class="modal-notice">
-            <strong>Roadmap Milestone:</strong> Part of the USST Avionics Division flight preparation for Launch Canada 2027.
+            <strong>Roadmap Milestone:</strong> Part of the USST Avionics flight preparation for Launch Canada 2027.
           </div>
 
           <div class="inspector-grid-2">

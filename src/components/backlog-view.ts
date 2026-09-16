@@ -297,7 +297,7 @@ export class BacklogView {
 
     rightCol.innerHTML = `
       <div class="card-header">
-        <div class="card-title">Division Capacity Model</div>
+        <div class="card-title">Avionics Capacity Model</div>
       </div>
 
       <div class="capacity-stats-list">
@@ -327,7 +327,7 @@ export class BacklogView {
         <div class="headcount-result-box">
           <div class="headcount-label">Active Members Required per Term</div>
           <div class="headcount-val font-mono" id="display-headcount">${headcountNeeded}</div>
-          <div class="headcount-note">Dedicated members contributing ~5–8 hrs/week</div>
+          <div class="headcount-note">Active members contributing ~3 hrs/week (Saturday work sessions)</div>
         </div>
       </div>
 

@@ -131,7 +131,7 @@ export class RoadmapView {
                 endDate: m.endDate,
                 progress: 0,
                 dependencies: [],
-                assignees: [m.subsystemTag === 'Academic' ? 'All Students' : 'Avionics Division Leads'],
+                assignees: [m.subsystemTag === 'Academic' ? 'All Students' : 'Avionics Leads'],
                 notes: m.keyDeliverables,
                 isMilestone: m.isMajorReview
               });

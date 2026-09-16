@@ -608,7 +608,7 @@ export const SUBSYSTEMS_DATA: SubsystemProject[] = [
     techStack: ['STM32H7/F4', 'Altium / KiCAD', 'High-Speed Routing', 'Oscilloscopes', 'SPI / I2C / CAN'],
     tracks: ['hardware', 'beginner'],
     icon: 'cpu',
-    leadRole: 'Hardware Division Lead'
+    leadRole: 'Hardware Lead'
   },
   {
     id: 'subsystem-power',
@@ -778,7 +778,7 @@ export const ROLE_TRACKS_DATA: RoleTrack[] = [
     name: 'RF Communications & Antennas',
     badge: 'Radio & Telemetry',
     icon: 'radio',
-    tagline: 'Beaming real-time telemetry from 30,000+ feet back to our ground station.',
+    tagline: 'Beaming real-time telemetry from high-altitude flight back to our ground station.',
     description: 'Long-range LoRa packet protocols, high-dynamic GPS receivers, antenna impedance matching, and link budget calculations.',
     matchingMajors: ['Electrical Engineering', 'Engineering Physics', 'Telecommunications'],
     recommendedSkills: ['RF Fundamentals', 'Antenna Design', 'NanoVNA / Spectrum Analyzers', 'Digital Protocols'],

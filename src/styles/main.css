@@ -1,5 +1,5 @@
 /* ==========================================================================
-   USST Avionics Division: Professional Design System
+   USST Avionics: Professional Design System
    Engineered for Launch Canada 2027
    Clean, high-contrast, human-crafted aerospace interface.
    ========================================================================== */
@@ -149,44 +149,6 @@ body {
   background: var(--accent-green);
   display: inline-block;
   flex-shrink: 0;
-}
-
-/* Top System Status Bar */
-.status-bar {
-  background: #f1f5f3;
-  border-bottom: 1px solid var(--border-subtle);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  padding: 0.4rem 0;
-  z-index: 50;
-}
-
-.status-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.status-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.status-item.next-gate {
-  color: var(--usst-gold-text);
-  background: var(--usst-gold-subtle);
-  padding: 0.1rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid rgba(234, 162, 26, 0.3);
-  font-weight: 600;
-  margin-left: auto;
-}
-
-.status-sep {
-  color: rgba(0, 0, 0, 0.2);
 }
 
 /* Application Header */
@@ -2340,10 +2302,6 @@ body {
 
 body.booth-mode {
   background: var(--bg-canvas);
-}
-
-body.booth-mode .status-bar {
-  display: none;
 }
 
 body.booth-mode .app-header {

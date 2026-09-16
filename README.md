@@ -1,6 +1,6 @@
-# USST Avionics Division
+# USST Avionics
 
-Web platform for the University of Saskatchewan Space Team (USST) Avionics Division competing in Launch Canada 2027 (August 10–16, 2027).
+Web platform for the University of Saskatchewan Space Team (USST) Avionics competing in Launch Canada 2027 (August 10–16, 2027).
 
 ## What the site is for
 

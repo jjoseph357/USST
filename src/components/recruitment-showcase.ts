@@ -54,7 +54,6 @@ export class RecruitmentShowcase {
             <span class="badge badge-primary">
               ${getIconSvg('rocket', 14)} Launch Canada 2027
             </span>
-            <span class="badge badge-secondary">Target Apogee: 30,000 ft AGL</span>
           </div>
 
           <h1 class="hero-headline">
@@ -62,7 +61,7 @@ export class RecruitmentShowcase {
           </h1>
 
           <p class="hero-lead">
-            The University of Saskatchewan Space Team (USST) Avionics Division designs, builds, and flies custom electronic hardware and real-time flight software for competition rocketry. We are currently architecting our in-house STM32 flight computer and Zephyr RTOS system for Launch Canada 2027.
+            The University of Saskatchewan Space Team (USST) Avionics designs, builds, and flies custom electronic hardware and real-time flight software for competition rocketry. We are currently architecting our in-house STM32 flight computer and Zephyr RTOS system for Launch Canada 2027.
           </p>
 
           <!-- Launch Countdown Clock -->
