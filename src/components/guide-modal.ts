@@ -75,12 +75,12 @@ export class GuideModal {
               <div class="guide-step-card">
                 <div class="guide-step-num">2</div>
                 <div class="guide-step-body">
-                  <strong class="guide-step-title">Ask their major and use the role matcher</strong>
+                  <strong class="guide-step-title">Ask their major and explore the 6 projects</strong>
                   <p class="guide-step-desc">
-                    Ask what degree they are taking. Click their discipline (Hardware, Firmware, RF, Controls, Full-Stack, or Mechanical) to instantly highlight relevant starter mini-projects.
+                    Ask what degree they are taking. Show them our 6 engineering divisions (Flight Computer, Power, RTOS, LoRa Comms, Ground Station Web, Airframe) to find their best match.
                   </p>
                   <button class="btn btn-xs btn-default guide-action-btn" id="guide-jump-matcher">
-                    ${getIconSvg('compass', 12)} Go to role matcher
+                    ${getIconSvg('compass', 12)} Explore 6 projects
                   </button>
                 </div>
               </div>
@@ -100,11 +100,11 @@ export class GuideModal {
                 <div class="guide-step-body">
                   <strong class="guide-step-title">Give meeting details and scan Discord QR</strong>
                   <p class="guide-step-desc">
-                    We meet weekly in <strong>Engineering Building, Room 2C01 (Classroom)</strong> on Saturdays at 12:00 PM. Have them scan the QR code or click below to join Discord.
+                    We meet in <strong>Engineering Building, Room 2C01</strong> on <strong>Saturdays @ 12:00 PM</strong>. Have them scan the QR code or click below to join Discord.
                   </p>
                   <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                     <a href="https://discord.gg/VB9yJc5Qg" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-discord">
-                      ${getIconSvg('discord', 12)} Join Discord (https://discord.gg/VB9yJc5Qg)
+                      ${getIconSvg('discord', 12)} Join Discord (discord.gg/VB9yJc5Qg)
                     </a>
                   </div>
                 </div>
@@ -194,7 +194,7 @@ export class GuideModal {
       this.close();
       this.onNavigateToView('recruitment');
       setTimeout(() => {
-        document.getElementById('flight-video-theater')?.scrollIntoView({ behavior: 'smooth' });
+        document.querySelector('.flight-compact-card')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     });
 
@@ -202,7 +202,7 @@ export class GuideModal {
       this.close();
       this.onNavigateToView('recruitment');
       setTimeout(() => {
-        document.getElementById('role-matcher-section')?.scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('projects-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     });
 

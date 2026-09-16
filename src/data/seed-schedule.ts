@@ -1098,7 +1098,7 @@ export const FLIGHT_VIDEOS_DATA: FlightVideoFeed[] = [
   {
     id: 'rocket',
     title: 'Rocket On-Board Camera',
-    sourceUrl: '/videos/lc2026_launch.mp4#t=40',
+    sourceUrl: './videos/lc2026_launch.mp4#t=40',
     mimeType: 'video/mp4',
     startTimeSeconds: 40,
     description: 'On-board rocket camera starting at 40 seconds into the video (pad liftoff and atmospheric ascent).'
@@ -1106,16 +1106,17 @@ export const FLIGHT_VIDEOS_DATA: FlightVideoFeed[] = [
   {
     id: 'livestream',
     title: 'Launch Canada Official Livestream',
-    sourceUrl: '/videos/ScreenRecording_08-17-2026%2018-50-51_1.mov',
+    sourceUrl: './videos/ScreenRecording_08-17-2026%2018-50-51_1.mov',
     mimeType: 'video/quicktime',
     description: 'Official competition broadcast tracking countdown sequence and mission control commentary.'
   },
   {
     id: 'ground',
     title: 'Ground Pad Recovery Tracking',
-    sourceUrl: '/videos/IMG_8186.MOV',
+    sourceUrl: './videos/IMG_8186.MOV#t=34',
     mimeType: 'video/quicktime',
-    description: 'Spectator and recovery phone recording from the pad perimeter.'
+    startTimeSeconds: 34,
+    description: 'Spectator and recovery phone recording from the pad perimeter starting at 34 seconds (pad liftoff).'
   }
 ];
 

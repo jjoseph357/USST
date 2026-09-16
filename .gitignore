@@ -4,6 +4,5 @@ dist/
 *.local
 .env
 
-# Large video files
-videos/
-public/videos/
+# Large video files (root scratch only, public/videos/ is tracked via Git LFS)
+/videos/

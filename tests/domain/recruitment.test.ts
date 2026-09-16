@@ -210,5 +210,7 @@ describe('Recruitment & Project Data Models', () => {
     const groundVid = FLIGHT_VIDEOS_DATA.find(v => v.id === 'ground')!;
     expect(groundVid).toBeDefined();
     expect(groundVid.sourceUrl).toContain('IMG_8186.MOV');
+    expect(groundVid.startTimeSeconds).toBe(34);
+    expect(groundVid.sourceUrl).toContain('#t=34');
   });
 });

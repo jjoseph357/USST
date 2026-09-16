@@ -177,14 +177,14 @@ export class RecruitmentShowcase {
                 ${getIconSvg('tv', 14)} CAM 2 (Stream)
               </button>
               <button class="cam-tab-btn ${this.activeCameraFeed === 'ground' ? 'active' : ''}" data-feed="ground">
-                ${getIconSvg('telescope', 14)} CAM 3 (Ground)
+                ${getIconSvg('telescope', 14)} CAM 3 (Ground @ 34s)
               </button>
             </div>
           </div>
 
           <div class="flight-player-wrapper">
             <video id="flight-video-player" class="flight-video-player" playsinline controls preload="metadata" muted>
-              <source src="/videos/lc2026_launch.mp4#t=40" type="video/mp4" />
+              <source src="./videos/lc2026_launch.mp4#t=40" type="video/mp4" />
               Your browser does not support HTML5 video.
             </video>
           </div>
@@ -207,7 +207,7 @@ export class RecruitmentShowcase {
             <span class="badge badge-primary">Get Involved</span>
             <h2>Weekly Work Sessions</h2>
             <p>
-              We meet twice every week in the USask Engineering Building. No experience required — drop in, meet the team leads, grab a seat, and start building.
+              We meet weekly in the USask Engineering Building. No experience required — drop in, meet the team leads, grab a seat, and start building.
             </p>
 
             <div class="session-details-grid">
@@ -222,7 +222,7 @@ export class RecruitmentShowcase {
                 <div class="session-detail-icon">${getIconSvg('clock', 20)}</div>
                 <div>
                   <div class="session-detail-label">Meeting Times</div>
-                  <div class="session-detail-val">Thursdays @ 6:00 PM &amp; Saturdays @ 1:00 PM</div>
+                  <div class="session-detail-val">Saturdays @ 12:00 PM</div>
                 </div>
               </div>
               <div class="session-detail-item">
@@ -240,7 +240,9 @@ export class RecruitmentShowcase {
                 <div class="session-detail-icon">${getIconSvg('mail', 20)}</div>
                 <div>
                   <div class="session-detail-label">Contact</div>
-                  <div class="session-detail-val">avionics-leads@usst.ca</div>
+                  <div class="session-detail-val">
+                    <a href="mailto:humanresources@usst.ca" class="link-subtle" style="color: inherit; text-decoration: none;">humanresources@usst.ca</a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -309,22 +311,29 @@ export class RecruitmentShowcase {
 
     if (!player) return;
 
-    const enforce40s = () => {
+    const enforceStartTime = () => {
       if (this.activeCameraFeed === 'rocket' && player.currentTime < 40) {
         player.currentTime = 40;
+      } else if (this.activeCameraFeed === 'ground' && player.currentTime < 34) {
+        player.currentTime = 34;
       }
     };
 
-    player.addEventListener('loadedmetadata', enforce40s);
+    player.addEventListener('loadedmetadata', enforceStartTime);
     player.addEventListener('play', () => {
       if (this.activeCameraFeed === 'rocket' && player.currentTime < 39.5) {
         player.currentTime = 40;
+      } else if (this.activeCameraFeed === 'ground' && player.currentTime < 33.5) {
+        player.currentTime = 34;
       }
     });
 
     replayBtn?.addEventListener('click', () => {
       if (this.activeCameraFeed === 'rocket') {
         player.currentTime = 40;
+        player.play().catch(() => {});
+      } else if (this.activeCameraFeed === 'ground') {
+        player.currentTime = 34;
         player.play().catch(() => {});
       } else {
         player.currentTime = 0;
@@ -345,15 +354,18 @@ export class RecruitmentShowcase {
         });
 
         if (feed === 'rocket') {
-          player.src = '/videos/lc2026_launch.mp4#t=40';
+          player.src = './videos/lc2026_launch.mp4#t=40';
           player.muted = true;
           player.load();
           if (caption) {
             caption.innerHTML = '<strong>CAM 1 (On-Board):</strong> Camera starts at 40s solid motor ignition. Notice vehicle ascent stability.';
           }
-          if (replayBtn) replayBtn.style.display = 'inline-flex';
+          if (replayBtn) {
+            replayBtn.style.display = 'inline-flex';
+            replayBtn.innerHTML = `${getIconSvg('rotateCcw', 12)} Replay from 0:40`;
+          }
         } else if (feed === 'livestream') {
-          player.src = '/videos/ScreenRecording_08-17-2026%2018-50-51_1.mov';
+          player.src = './videos/ScreenRecording_08-17-2026%2018-50-51_1.mov';
           player.muted = false;
           player.load();
           if (caption) {
@@ -361,13 +373,16 @@ export class RecruitmentShowcase {
           }
           if (replayBtn) replayBtn.style.display = 'none';
         } else if (feed === 'ground') {
-          player.src = '/videos/IMG_8186.MOV';
+          player.src = './videos/IMG_8186.MOV#t=34';
           player.muted = false;
           player.load();
           if (caption) {
-            caption.innerHTML = '<strong>CAM 3 (Ground):</strong> Spectator pad tracking and audio recorded from the launch range.';
+            caption.innerHTML = '<strong>CAM 3 (Ground Optical):</strong> Spectator pad tracking and audio recorded from the launch range (starts @ 34s).';
           }
-          if (replayBtn) replayBtn.style.display = 'none';
+          if (replayBtn) {
+            replayBtn.style.display = 'inline-flex';
+            replayBtn.innerHTML = `${getIconSvg('rotateCcw', 12)} Replay from 0:34`;
+          }
         }
       });
     });
