@@ -207,7 +207,7 @@ export class RecruitmentShowcase {
             <span class="badge badge-primary">Get Involved</span>
             <h2>Weekly Work Sessions</h2>
             <p>
-              We meet weekly in the USask Engineering Building. No experience required — drop in, meet the team leads, grab a seat, and start building.
+              We meet weekly in the USask Engineering Building. No experience required. Drop in, meet the team, grab a seat, and start building.
             </p>
 
             <div class="session-details-grid">
