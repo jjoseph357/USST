@@ -142,5 +142,18 @@ export declare function updateBlock(
 export declare function openBlockModal(blockId?: string | null): void;
 export declare function closeBlockModal(): void;
 
+export interface FlowLane {
+  splitFrom: string | null;
+  mergesInto?: string | null;
+  tasks: Task[];
+}
+
+export declare function connectTasks(sourceId: string, targetId: string): boolean;
+export declare function disconnectTasks(fromId: string, toId: string): boolean;
+export declare function extractBlockFlowLanes(blockTasks: Task[]): {
+  flowLanes: FlowLane[];
+  standaloneTasks: Task[];
+};
+
 
 

@@ -477,7 +477,6 @@ const TASKS = [
     status: 'testing',
     assignees: ['chase', 'ven'],
     dependsOn: ['B2-01'],
-    reactions: '👍 1 · 👎 2 (Needs verification pass)',
     checklist: ['Prototype linear KF filter', 'Verify with simulated flight data'],
     tags: ['MATLAB', 'Jupyter', 'KF']
   },
@@ -489,7 +488,6 @@ const TASKS = [
     status: 'testing',
     assignees: ['chase', 'ven', 'david'],
     dependsOn: ['B2-02'],
-    reactions: '👍 1 · 👎 2 (Testing & verification active)',
     checklist: ['Sigma point generation', 'MATLAB first, then prepare for C++'],
     tags: ['MATLAB', 'Jupyter', 'UKF']
   },
@@ -725,6 +723,7 @@ let activeFilters = {
 };
 
 const collapsedBlocks = new Set();
+let connectingSourceId = null;
 
 // Guest Observer profile
 const GUEST_MEMBER = {
@@ -1080,6 +1079,189 @@ function renderMetrics(filtered) {
   `;
 }
 
+function connectTasks(sourceId, targetId) {
+  const user = getActiveUser();
+  if (user.id === 'guest') {
+    if (typeof alert !== 'undefined') alert('Guests have read-only access. Sign in as a team member to connect tasks.');
+    return false;
+  }
+  if (!sourceId || !targetId || sourceId === targetId) return false;
+  const sourceTask = taskMap[sourceId];
+  const targetTask = taskMap[targetId];
+  if (!sourceTask || !targetTask) return false;
+
+  if (targetTask.dependsOn.includes(sourceId)) {
+    return true; // Already connected
+  }
+
+  // Circular dependency check: does targetTask already lead to sourceId?
+  const checkCycle = (curr, goal, visited = new Set()) => {
+    if (curr === goal) return true;
+    if (visited.has(curr)) return false;
+    visited.add(curr);
+    const cTask = taskMap[curr];
+    if (!cTask || !cTask.dependsOn) return false;
+    return cTask.dependsOn.some(dep => checkCycle(dep, goal, visited));
+  };
+
+  if (checkCycle(sourceId, targetId)) {
+    if (typeof alert !== 'undefined') alert(`Cannot link tasks: this would create a circular dependency loop (${sourceId} ↔ ${targetId}).`);
+    return false;
+  }
+
+  targetTask.dependsOn.push(sourceId);
+  addAuditLog(`Linked dependency: ${sourceId} ➔ ${targetId}`);
+  saveStoredState();
+  syncTaskToFirestore(targetTask);
+  renderAll();
+  return true;
+}
+
+function disconnectTasks(fromId, toId) {
+  const user = getActiveUser();
+  if (user.id === 'guest') {
+    if (typeof alert !== 'undefined') alert('Guests have read-only access. Sign in as a team member to disconnect tasks.');
+    return false;
+  }
+  if (!fromId || !toId) return false;
+  const targetTask = taskMap[toId];
+  if (!targetTask || !targetTask.dependsOn) return false;
+
+  if (!targetTask.dependsOn.includes(fromId)) return false;
+
+  targetTask.dependsOn = targetTask.dependsOn.filter(d => d !== fromId);
+  addAuditLog(`Unlinked dependency: removed ${fromId} from ${toId}`);
+  saveStoredState();
+  syncTaskToFirestore(targetTask);
+  renderAll();
+  return true;
+}
+
+function extractBlockFlowLanes(blockTasks) {
+  const blockTaskMap = new Map(blockTasks.map(t => [t.id, t]));
+  const blockTaskIds = new Set(blockTasks.map(t => t.id));
+
+  // Determine tasks that participate in flow
+  const flowTaskIds = new Set();
+  blockTasks.forEach(t => {
+    if (t.dependsOn && t.dependsOn.length > 0) {
+      flowTaskIds.add(t.id);
+    }
+    blockTasks.forEach(other => {
+      if (other.dependsOn && other.dependsOn.includes(t.id)) {
+        flowTaskIds.add(t.id);
+        flowTaskIds.add(other.id);
+      }
+    });
+  });
+
+  const standaloneTasks = blockTasks.filter(t => !flowTaskIds.has(t.id));
+  const flowTasks = blockTasks.filter(t => flowTaskIds.has(t.id));
+
+  const childrenMap = new Map();
+  const parentsMap = new Map();
+
+  flowTasks.forEach(t => {
+    childrenMap.set(t.id, []);
+    parentsMap.set(t.id, []);
+  });
+
+  flowTasks.forEach(t => {
+    (t.dependsOn || []).forEach(depId => {
+      if (blockTaskIds.has(depId)) {
+        childrenMap.get(depId)?.push(t.id);
+        parentsMap.get(t.id)?.push(depId);
+      }
+    });
+  });
+
+  const usedEdges = new Set();
+  const visitedTaskIds = new Set();
+  const lanes = [];
+
+  // Roots: tasks in flowTasks with 0 internal parents in this block
+  const roots = flowTasks
+    .filter(t => (parentsMap.get(t.id) || []).length === 0)
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  const tracePath = (startTask, splitFromId = null) => {
+    const laneTasks = [startTask];
+    visitedTaskIds.add(startTask.id);
+    let curr = startTask;
+    let mergesIntoId = null;
+
+    while (curr) {
+      const children = (childrenMap.get(curr.id) || []).filter(cId => !usedEdges.has(`${curr.id}->${cId}`));
+      if (children.length > 0) {
+        const nextId = children[0];
+        usedEdges.add(`${curr.id}->${nextId}`);
+        if (visitedTaskIds.has(nextId)) {
+          mergesIntoId = nextId;
+          break;
+        }
+        const nextTask = blockTaskMap.get(nextId);
+        if (nextTask) {
+          laneTasks.push(nextTask);
+          visitedTaskIds.add(nextTask.id);
+          curr = nextTask;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+    return {
+      splitFrom: splitFromId,
+      mergesInto: mergesIntoId,
+      tasks: laneTasks
+    };
+  };
+
+  // Trace from roots
+  roots.forEach(r => {
+    if (!visitedTaskIds.has(r.id)) {
+      lanes.push(tracePath(r, null));
+    }
+  });
+
+  // Trace split branches off visited nodes
+  let foundBranch = true;
+  while (foundBranch) {
+    foundBranch = false;
+    for (const lane of lanes) {
+      for (const t of lane.tasks) {
+        const unusedChildren = (childrenMap.get(t.id) || []).filter(cId => !usedEdges.has(`${t.id}->${cId}`));
+        if (unusedChildren.length > 0) {
+          const nextChildId = unusedChildren[0];
+          usedEdges.add(`${t.id}->${nextChildId}`);
+          if (!visitedTaskIds.has(nextChildId)) {
+            const nextTask = blockTaskMap.get(nextChildId);
+            if (nextTask) {
+              lanes.push(tracePath(nextTask, t.id));
+              foundBranch = true;
+              break;
+            }
+          }
+        }
+      }
+      if (foundBranch) break;
+    }
+  }
+
+  // Cover any remaining unvisited flow tasks (e.g. cycle or detached)
+  flowTasks.forEach(rem => {
+    if (!visitedTaskIds.has(rem.id)) {
+      lanes.push(tracePath(rem, null));
+    }
+  });
+
+  return {
+    flowLanes: lanes.filter(l => l.tasks && l.tasks.length > 0),
+    standaloneTasks
+  };
+}
+
 function renderTaskCardHTML(task, blockColor) {
   const user = getActiveUser();
   const isGuest = user.id === 'guest';
@@ -1129,7 +1311,16 @@ function renderTaskCardHTML(task, blockColor) {
 
   const depHTML = (task.dependsOn.length > 0 || downstream.length > 0)
     ? `<div class="dep-box">
-        ${task.dependsOn.length > 0 ? `<div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">${unmet.length > 0 ? 'Requires' : 'Met'}: <strong>${task.dependsOn.join(', ')}</strong></div>` : ''}
+        ${task.dependsOn.length > 0 ? `
+          <div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">
+            <span>${unmet.length > 0 ? 'Requires' : 'Met'}:</span>
+            ${task.dependsOn.map(d => `
+              <span class="dep-pill-chip" title="Prerequisite task ${d}">
+                ${d}
+                ${!isGuest ? `<button type="button" class="dep-pill-unlink" data-disconnect-from="${d}" data-disconnect-to="${task.id}" title="Remove dependency on ${d}">✕</button>` : ''}
+              </span>
+            `).join(' ')}
+          </div>` : ''}
         ${downstream.length > 0 ? `<div class="dep-line leads-to">Unlocks: <strong>${downstream.map(d => d.id).join(', ')}</strong></div>` : ''}
        </div>`
     : '';
@@ -1157,8 +1348,10 @@ function renderTaskCardHTML(task, blockColor) {
         </div>
         <div class="task-right-actions">
           ${!isGuest ? `
-            <button type="button" class="task-inline-add-btn" data-inline-add="${task.id}" title="Add a follow-up task right here (links ${task.id} as prerequisite)">+ Add</button>
-            <div class="flow-connect-handle" draggable="true" data-connect-source="${task.id}" title="Drag this arrow (→) onto another task to set ${task.id} as its prerequisite">→</div>
+            <div class="task-mini-tools">
+              <button type="button" class="mini-tool-btn inline-add-btn" data-inline-add="${task.id}" title="Add a follow-up task right here (links ${task.id} as prerequisite)">+</button>
+              <button type="button" class="mini-tool-btn flow-connect-btn" draggable="true" data-connect-source="${task.id}" title="Click or drag to connect ${task.id} as prerequisite of another task">➔</button>
+            </div>
           ` : ''}
           <div class="task-status-wrap">
             <span class="status-badge status-${task.status}">${getStatusLabel(task.status)}</span>
@@ -1187,7 +1380,6 @@ function renderTaskCardHTML(task, blockColor) {
           ${assigneesHTML}
           ${quickClaimBtnHTML}
         </div>
-        ${task.reactions ? `<span class="reactions-pill">${task.reactions}</span>` : ''}
       </div>
     </article>
   `;
@@ -1245,9 +1437,69 @@ function attachCardInteractions(container) {
     });
   });
 
-  // Flow connect arrow handle
-  container.querySelectorAll('[data-connect-source]').forEach(handle => {
-    handle.addEventListener('click', e => e.stopPropagation());
+  // Disconnect on flow-arrow-btn
+  container.querySelectorAll('.flow-arrow-btn[data-disconnect-from][data-disconnect-to]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fromId = btn.getAttribute('data-disconnect-from');
+      const toId = btn.getAttribute('data-disconnect-to');
+      if (fromId && toId) {
+        disconnectTasks(fromId, toId);
+      }
+    });
+  });
+
+  // Disconnect on split-unlink-btn
+  container.querySelectorAll('.split-unlink-btn[data-disconnect-from][data-disconnect-to]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fromId = btn.getAttribute('data-disconnect-from');
+      const toId = btn.getAttribute('data-disconnect-to');
+      if (fromId && toId) {
+        disconnectTasks(fromId, toId);
+      }
+    });
+  });
+
+  // Disconnect on dep-pill-unlink
+  container.querySelectorAll('.dep-pill-unlink[data-disconnect-from][data-disconnect-to]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const fromId = btn.getAttribute('data-disconnect-from');
+      const toId = btn.getAttribute('data-disconnect-to');
+      if (fromId && toId) {
+        disconnectTasks(fromId, toId);
+      }
+    });
+  });
+
+  // Flow connect button (click-to-connect mode & drag)
+  container.querySelectorAll('.flow-connect-btn').forEach(handle => {
+    handle.addEventListener('click', e => {
+      e.stopPropagation();
+      const user = getActiveUser();
+      if (user.id === 'guest') {
+        alert('Guests have read-only access. Sign in as a team member to connect tasks.');
+        return;
+      }
+      const sourceId = handle.getAttribute('data-connect-source');
+      if (!sourceId) return;
+
+      if (connectingSourceId === sourceId) {
+        connectingSourceId = null;
+        document.querySelectorAll('.task-card.is-connecting').forEach(c => c.classList.remove('is-connecting'));
+      } else {
+        connectingSourceId = sourceId;
+        document.querySelectorAll('.task-card').forEach(c => {
+          if (c.getAttribute('data-task-id') === sourceId) {
+            c.classList.add('is-connecting');
+          } else {
+            c.classList.remove('is-connecting');
+          }
+        });
+      }
+    });
+
     handle.addEventListener('dragstart', e => {
       e.stopPropagation();
       const sourceId = handle.getAttribute('data-connect-source');
@@ -1261,10 +1513,27 @@ function attachCardInteractions(container) {
 
   // Card Click & Drag Events
   container.querySelectorAll('.task-card').forEach(card => {
-    card.addEventListener('click', () => {
+    card.addEventListener('click', e => {
       const taskId = card.getAttribute('data-task-id');
-      if (taskId) openTaskModal(taskId);
+      if (!taskId) return;
+
+      if (connectingSourceId) {
+        e.stopPropagation();
+        if (connectingSourceId === taskId) {
+          connectingSourceId = null;
+          card.classList.remove('is-connecting');
+        } else {
+          const fromId = connectingSourceId;
+          connectingSourceId = null;
+          document.querySelectorAll('.task-card.is-connecting').forEach(c => c.classList.remove('is-connecting'));
+          connectTasks(fromId, taskId);
+        }
+        return;
+      }
+
+      openTaskModal(taskId);
     });
+
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
@@ -1272,6 +1541,7 @@ function attachCardInteractions(container) {
         if (taskId) openTaskModal(taskId);
       }
     });
+
     card.addEventListener('dragstart', e => {
       const taskId = card.getAttribute('data-task-id');
       if (taskId && e.dataTransfer) {
@@ -1279,9 +1549,11 @@ function attachCardInteractions(container) {
         card.classList.add('dragging');
       }
     });
+
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
     });
+
     card.addEventListener('dragover', e => {
       if (e.dataTransfer && e.dataTransfer.types.includes('application/usst-connect-source')) {
         e.preventDefault();
@@ -1290,9 +1562,11 @@ function attachCardInteractions(container) {
         card.classList.add('connect-target-hover');
       }
     });
+
     card.addEventListener('dragleave', () => {
       card.classList.remove('connect-target-hover');
     });
+
     card.addEventListener('drop', e => {
       if (e.dataTransfer && e.dataTransfer.types.includes('application/usst-connect-source')) {
         e.preventDefault();
@@ -1301,33 +1575,27 @@ function attachCardInteractions(container) {
         const sourceId = e.dataTransfer.getData('application/usst-connect-source') || e.dataTransfer.getData('text/plain');
         const targetId = card.getAttribute('data-task-id');
         if (sourceId && targetId && sourceId !== targetId) {
-          const targetTask = taskMap[targetId];
-          const sourceTask = taskMap[sourceId];
-          if (targetTask && sourceTask) {
-            if (targetTask.dependsOn.includes(sourceId)) {
-              return;
-            }
-            const checkCycle = (curr, goal, visited = new Set()) => {
-              if (curr === goal) return true;
-              if (visited.has(curr)) return false;
-              visited.add(curr);
-              const cTask = taskMap[curr];
-              if (!cTask || !cTask.dependsOn) return false;
-              return cTask.dependsOn.some(dep => checkCycle(dep, goal, visited));
-            };
-            if (checkCycle(sourceId, targetId)) {
-              alert(`Cannot link tasks: this would create a circular dependency loop (${sourceId} ↔ ${targetId}).`);
-              return;
-            }
-            targetTask.dependsOn.push(sourceId);
-            addAuditLog(`Linked dependency: ${sourceId} ➔ ${targetId}`);
-            saveStoredState();
-            syncTaskToFirestore(targetTask);
-            renderAll();
-          }
+          connectTasks(sourceId, targetId);
         }
       }
     });
+  });
+}
+
+// Global click & Escape handlers for click-to-connect mode
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && connectingSourceId) {
+      connectingSourceId = null;
+      document.querySelectorAll('.task-card.is-connecting').forEach(c => c.classList.remove('is-connecting'));
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (connectingSourceId && !e.target.closest('.task-card') && !e.target.closest('.flow-connect-btn')) {
+      connectingSourceId = null;
+      document.querySelectorAll('.task-card.is-connecting').forEach(c => c.classList.remove('is-connecting'));
+    }
   });
 }
 
@@ -1357,95 +1625,82 @@ function renderHierarchyView(filtered) {
       </a>`
     ).join('');
 
-    const deliverablesHTML = block.deliverables.map(d =>
-      `<span class="deliverable-tag">${d}</span>`
-    ).join('');
+    const { flowLanes, standaloneTasks } = extractBlockFlowLanes(blockTasks);
 
-    // Flow tasks: tasks with prerequisites or tasks that block other tasks in this block
-    const flowTasks = blockTasks.filter(t =>
-      (t.dependsOn && t.dependsOn.length > 0) ||
-      blockTasks.some(other => other.dependsOn && other.dependsOn.includes(t.id))
-    );
+    let flowHTML = '';
+    if (flowLanes.length > 0) {
+      flowHTML = flowLanes.map(lane => {
+        const firstTask = lane.tasks[0];
+        let branchPrefixHTML = '';
 
-    // Standalone tasks: tasks with no prerequisites and no downstream dependents in this block
-    const standaloneTasks = blockTasks.filter(t =>
-      (!t.dependsOn || t.dependsOn.length === 0) &&
-      !blockTasks.some(other => other.dependsOn && other.dependsOn.includes(t.id))
-    );
+        if (lane.splitFrom) {
+          branchPrefixHTML = `
+            <div class="split-branch-pill" title="This sequence branches off ${lane.splitFrom}">
+              <span class="split-icon">⑂</span>
+              <span>Split from <strong>${lane.splitFrom}</strong></span>
+              <button type="button" class="split-unlink-btn" data-disconnect-from="${lane.splitFrom}" data-disconnect-to="${firstTask.id}" title="Disconnect branch from ${lane.splitFrom}">✕</button>
+            </div>
+            <button type="button" class="flow-arrow-btn" data-disconnect-from="${lane.splitFrom}" data-disconnect-to="${firstTask.id}" title="Click to disconnect (${lane.splitFrom} ➔ ${firstTask.id})">
+              <span class="flow-arrow-icon">➔</span>
+              <span class="flow-disconnect-hover">✕</span>
+            </button>
+          `;
+        } else {
+          // Check for external prerequisites on first task
+          const externalDeps = (firstTask.dependsOn || []).filter(depId => !blockTasks.some(ot => ot.id === depId));
+          if (externalDeps.length > 0) {
+            branchPrefixHTML = externalDeps.map(extId => `
+              <div class="split-branch-pill external-pill" title="Prerequisite task outside this subsystem">
+                <span>↳ Requires <strong>${extId}</strong></span>
+                <button type="button" class="split-unlink-btn" data-disconnect-from="${extId}" data-disconnect-to="${firstTask.id}" title="Disconnect prerequisite ${extId}">✕</button>
+              </div>
+              <button type="button" class="flow-arrow-btn" data-disconnect-from="${extId}" data-disconnect-to="${firstTask.id}" title="Click to disconnect (${extId} ➔ ${firstTask.id})">
+                <span class="flow-arrow-icon">➔</span>
+                <span class="flow-disconnect-hover">✕</span>
+              </button>
+            `).join('');
+          }
+        }
 
-    let flowContentHTML = '';
-    if (flowTasks.length > 0) {
-      // Group flow tasks by deliverable epic
-      const epicMap = new Map();
-      flowTasks.forEach(t => {
-        const key = t.epic || 'Sequential Flow';
-        if (!epicMap.has(key)) epicMap.set(key, []);
-        epicMap.get(key).push(t);
-      });
-
-      const flowChainsHTML = Array.from(epicMap.entries()).map(([epicName, tasksInEpic]) => {
-        const sorted = [...tasksInEpic].sort((a, b) => {
-          if (b.dependsOn.includes(a.id)) return -1;
-          if (a.dependsOn.includes(b.id)) return 1;
-          return a.id.localeCompare(b.id);
-        });
-
-        const nodesHTML = sorted.map((t, idx) => {
-          const externalDeps = (t.dependsOn || []).filter(depId => !tasksInEpic.some(ot => ot.id === depId));
-          const externalBadge = externalDeps.length > 0
-            ? `<div style="display:flex; align-items:center; gap:0.25rem;">
-                <span class="block-external-pill" title="Prerequisite task">Pre: ${externalDeps.join(', ')}</span>
-                <span class="flow-arrow">➔</span>
-               </div>`
-            : '';
-          const arrowAfter = (idx < sorted.length - 1)
-            ? `<div class="flow-arrow" title="Sequentially unlocks next task">➔</div>`
+        const nodesHTML = lane.tasks.map((t, idx) => {
+          const arrowAfter = (idx < lane.tasks.length - 1)
+            ? `<button type="button" class="flow-arrow-btn" data-disconnect-from="${t.id}" data-disconnect-to="${lane.tasks[idx + 1].id}" title="Click to disconnect (${t.id} ➔ ${lane.tasks[idx + 1].id})">
+                <span class="flow-arrow-icon">➔</span>
+                <span class="flow-disconnect-hover">✕</span>
+               </button>`
             : '';
 
           return `
-            ${externalBadge}
             ${renderTaskCardHTML(t, block.color)}
             ${arrowAfter}
           `;
         }).join('');
 
+        const mergeAfter = lane.mergesInto
+          ? `<button type="button" class="flow-arrow-btn" data-disconnect-from="${lane.tasks[lane.tasks.length - 1].id}" data-disconnect-to="${lane.mergesInto}" title="Click to disconnect (${lane.tasks[lane.tasks.length - 1].id} ➔ ${lane.mergesInto})">
+               <span class="flow-arrow-icon">➔</span>
+               <span class="flow-disconnect-hover">✕</span>
+             </button>
+             <div class="split-branch-pill" title="Merges into ${lane.mergesInto}">
+               <span>↳ Merges into <strong>${lane.mergesInto}</strong></span>
+               <button type="button" class="split-unlink-btn" data-disconnect-from="${lane.tasks[lane.tasks.length - 1].id}" data-disconnect-to="${lane.mergesInto}" title="Disconnect from ${lane.mergesInto}">✕</button>
+             </div>`
+          : '';
+
         return `
-          <div class="flow-chain-group" style="margin-bottom: 0.9rem;">
-            <div class="flow-chain-header">
-              <span class="dot dot-progress" style="background:${block.color}"></span>
-              <span>${epicName} Sequence</span>
-            </div>
-            <div class="block-chain-flow">
-              ${nodesHTML}
-            </div>
+          <div class="block-chain-flow">
+            ${branchPrefixHTML}
+            ${nodesHTML}
+            ${mergeAfter}
           </div>
         `;
       }).join('');
-
-      flowContentHTML = `
-        <div class="block-flow-section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="13 17 18 12 13 7"></polyline>
-            <polyline points="6 17 11 12 6 7"></polyline>
-          </svg>
-          Sequential Dependency Flow (Drag arrow → or click + Add to chain tasks)
-        </div>
-        ${flowChainsHTML}
-      `;
     }
 
-    let standaloneContentHTML = '';
+    let standaloneHTML = '';
     if (standaloneTasks.length > 0) {
-      standaloneContentHTML = `
-        <div class="block-flow-section-title">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          Independent Tasks (No Prerequisites · Ready to Work)
-        </div>
-        <div class="tasks-grid">
+      standaloneHTML = `
+        <div class="tasks-grid" style="margin-top: ${flowLanes.length > 0 ? '0.75rem' : '0'};">
           ${standaloneTasks.map(t => renderTaskCardHTML(t, block.color)).join('')}
         </div>
       `;
@@ -1461,7 +1716,6 @@ function renderHierarchyView(filtered) {
               <span class="block-progress-pill" title="${doneBlockTasks} of ${allBlockTasks.length} tasks completed">${doneBlockTasks}/${allBlockTasks.length} Done (${pct}%)</span>
             </div>
             <p class="block-subtitle">${block.subtitle}</p>
-            <div class="objective-banner">${block.objective}</div>
           </div>
 
           <div class="block-header-actions">
@@ -1478,15 +1732,10 @@ function renderHierarchyView(filtered) {
           </div>
         </div>
 
-        <div class="deliverables-strip">
-          <span class="deliverables-label">KEY DELIVERABLES:</span>
-          ${deliverablesHTML}
-        </div>
-
         ${!isCollapsed ? `
           <div class="block-body-content" style="padding-top: 0.5rem;">
             ${blockTasks.length > 0
-              ? `${flowContentHTML}${standaloneContentHTML}`
+              ? `${flowHTML}${standaloneHTML}`
               : `<div class="empty-block-msg">No tasks match the current filter in ${block.code}.</div>`
             }
           </div>
@@ -1528,6 +1777,7 @@ function renderHierarchyView(filtered) {
 
   attachCardInteractions(container);
 }
+
 
 function renderDependencyChains() {
   const container = document.getElementById('dependencyContainer');
@@ -3501,6 +3751,9 @@ export {
   updateBlock,
   openBlockModal,
   closeBlockModal,
+  connectTasks,
+  disconnectTasks,
+  extractBlockFlowLanes,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 };

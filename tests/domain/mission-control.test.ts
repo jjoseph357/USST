@@ -29,6 +29,11 @@ import {
   updateCrewMember,
   addBlock,
   updateBlock,
+  connectTasks,
+  disconnectTasks,
+  extractBlockFlowLanes,
+  type FlowLane,
+  type Task,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 } from '../../app.js';
@@ -678,6 +683,86 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       const idxA = TASKS.findIndex(t => t.id === taskA.id);
       if (idxA >= 0) TASKS.splice(idxA, 1);
       delete taskMap[taskA.id];
+    });
+
+    it('extracts split dependency flow lanes and separates independent tasks', () => {
+      const block1Tasks = TASKS.filter(t => t.blockId === 'block-1');
+      const { flowLanes, standaloneTasks } = extractBlockFlowLanes(block1Tasks);
+
+      // Block 1 should have multiple lanes because B1-03 and B1-08 split
+      expect(flowLanes.length).toBeGreaterThanOrEqual(3);
+
+      // Primary lane starting at root B1-01
+      const rootLane = flowLanes.find((l: FlowLane) => l.splitFrom === null);
+      expect(rootLane).toBeDefined();
+      expect(rootLane?.tasks[0].id).toBe('B1-01');
+
+      // Split lanes should reference their splitFrom parent
+      const splitLanes = flowLanes.filter((l: FlowLane) => l.splitFrom !== null);
+      expect(splitLanes.length).toBeGreaterThanOrEqual(2);
+      const splitParents = splitLanes.map((l: FlowLane) => l.splitFrom);
+      expect(splitParents).toContain('B1-03');
+      expect(splitParents).toContain('B1-08');
+
+      // Standalone tasks have no dependencies and no dependents in this block
+      const standaloneIds = standaloneTasks.map((t: Task) => t.id);
+      expect(standaloneIds).toContain('B1-11');
+      expect(standaloneIds).toContain('B1-12');
+    });
+
+    it('connects and disconnects tasks with instant audit logging and cycle rejection', () => {
+      setActiveUser('joseph'); // Lead user
+
+      const taskX = createNewTask({
+        blockId: 'block-2',
+        title: 'Task X',
+        epic: 'Algorithm Verification'
+      });
+      const taskY = createNewTask({
+        blockId: 'block-2',
+        title: 'Task Y',
+        epic: 'Algorithm Verification'
+      });
+      const taskZ = createNewTask({
+        blockId: 'block-2',
+        title: 'Task Z',
+        epic: 'Algorithm Verification'
+      });
+
+      // Connect X -> Y (Y depends on X)
+      const res1 = connectTasks(taskX.id, taskY.id);
+      expect(res1).toBe(true);
+      expect(taskY.dependsOn).toContain(taskX.id);
+
+      // Connect Y -> Z (Z depends on Y)
+      const res2 = connectTasks(taskY.id, taskZ.id);
+      expect(res2).toBe(true);
+      expect(taskZ.dependsOn).toContain(taskY.id);
+
+      // Attempting to connect Z -> X would create a cycle (X -> Y -> Z -> X)
+      const resCycle = connectTasks(taskZ.id, taskX.id);
+      expect(resCycle).toBe(false);
+      expect(taskX.dependsOn).not.toContain(taskZ.id);
+
+      // Disconnect Y from Z
+      const resDisc = disconnectTasks(taskY.id, taskZ.id);
+      expect(resDisc).toBe(true);
+      expect(taskZ.dependsOn).not.toContain(taskY.id);
+
+      // Guest cannot connect or disconnect
+      setActiveUser('guest');
+      const resGuestConnect = connectTasks(taskY.id, taskZ.id);
+      expect(resGuestConnect).toBe(false);
+      const resGuestDisc = disconnectTasks(taskX.id, taskY.id);
+      expect(resGuestDisc).toBe(false);
+
+      // Reset to joseph and clean up
+      setActiveUser('joseph');
+      [taskX.id, taskY.id, taskZ.id].forEach(id => {
+        const idx = TASKS.findIndex(t => t.id === id);
+        if (idx >= 0) TASKS.splice(idx, 1);
+        delete taskMap[id];
+      });
     });
   });
 });
