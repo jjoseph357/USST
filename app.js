@@ -1,6 +1,6 @@
 /**
  * USST Rocketry Software Mission Control
- * Pre-loaded with all Blocks, Deliverables, Tasks, Dependencies, and Crew from Miro
+ * Streamlined HCI/UX Architecture for Task Management, Subsystem Hierarchy & Dependency Tracking
  */
 
 import { listenToFirestoreTasks, syncTaskToFirestore, seedTasksIfEmpty } from './firebase.js';
@@ -12,7 +12,7 @@ const TEAM_MEMBERS = [
     handle: 'snowy-shadow',
     role: 'Software Mentor / Lead',
     avatar: '🧙‍♂️',
-    color: '#3b82f6',
+    color: '#2563eb',
     flair: 'Ping on anything software (or life) related'
   },
   {
@@ -21,7 +21,7 @@ const TEAM_MEMBERS = [
     handle: 'joseph-usst',
     role: 'Architecture & Lead',
     avatar: '🚀',
-    color: '#ec4899',
+    color: '#db2777',
     flair: 'Docs Repo & Task Scheduler'
   },
   {
@@ -30,7 +30,7 @@ const TEAM_MEMBERS = [
     handle: 'nick-s',
     role: 'Embedded RTOS Dev',
     avatar: '🛰️',
-    color: '#60a5fa',
+    color: '#3b82f6',
     flair: 'Zephyr & Device Tree'
   },
   {
@@ -39,7 +39,7 @@ const TEAM_MEMBERS = [
     handle: 'sophie-dev',
     role: 'Embedded Dev',
     avatar: '🦊',
-    color: '#f472b6',
+    color: '#ec4899',
     flair: 'RTOS Research & C++'
   },
   {
@@ -48,7 +48,7 @@ const TEAM_MEMBERS = [
     handle: 'jay-dev',
     role: 'Flight Software Dev',
     avatar: '⚡',
-    color: '#e879f9',
+    color: '#9333ea',
     flair: 'C++ Core'
   },
   {
@@ -57,7 +57,7 @@ const TEAM_MEMBERS = [
     handle: 'chase-alg',
     role: 'Algorithms & GNC',
     avatar: '🧮',
-    color: '#06b6d4',
+    color: '#0891b2',
     flair: 'KF -> UKF Mathematics'
   },
   {
@@ -66,7 +66,7 @@ const TEAM_MEMBERS = [
     handle: 'ven-alg',
     role: 'Algorithms & GNC',
     avatar: '🔭',
-    color: '#22d3ee',
+    color: '#06b6d4',
     flair: 'State Estimation & UKF'
   },
   {
@@ -75,7 +75,7 @@ const TEAM_MEMBERS = [
     handle: 'michael-gs',
     role: 'Ground Station Dev',
     avatar: '📡',
-    color: '#10b981',
+    color: '#059669',
     flair: 'RP5 Telemetry UI'
   }
 ];
@@ -123,7 +123,7 @@ function addAuditLog(actionText) {
   const actor = user ? `${user.name} (${user.avatar})` : 'Guest';
   const now = new Date();
   const timeStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  
+
   auditLog.unshift({
     timestamp: timeStr,
     actor,
@@ -151,7 +151,7 @@ const BLOCKS = [
     name: 'Onboarding, Documentation & Tooling',
     subtitle: 'Team ramp-up · C++ foundations · Architecture docs',
     color: '#ec4899',
-    objective: 'OBJECTIVE Equip developers with C++ skills, repo walkthroughs, and clean documentation',
+    objective: 'OBJECTIVE: Equip developers with C++ skills, repo walkthroughs, and clean documentation',
     repos: [],
     deliverables: [
       'Main Documentation Repo (Architecture diagrams, links to other repos)',
@@ -165,7 +165,7 @@ const BLOCKS = [
     name: 'Zephyr RTOS',
     subtitle: 'Flight computer OS · Device Tree · HAL & Sensor Abstraction',
     color: '#3b82f6',
-    objective: 'OBJECTIVE Bring up Zephyr RTOS on flight hardware with clean HAL and sensor abstractions',
+    objective: 'OBJECTIVE: Bring up Zephyr RTOS on flight hardware with clean HAL and sensor abstractions',
     repos: [
       { name: 'USSTRocketry/Maidstone', url: 'https://github.com/USSTRocketry/Maidstone' }
     ],
@@ -181,7 +181,7 @@ const BLOCKS = [
     name: 'Algorithms & Apogee Detection',
     subtitle: 'Kalman Filter (KF -> UKF) · State Machine · Flight Math',
     color: '#06b6d4',
-    objective: 'OBJECTIVE Formulate, prototype in MATLAB/Jupyter, and implement UKF apogee detection in C++',
+    objective: 'OBJECTIVE: Formulate, prototype in MATLAB/Jupyter, and implement UKF apogee detection in C++',
     repos: [
       { name: 'USSTRocketry/Maidstone', url: 'https://github.com/USSTRocketry/Maidstone' },
       { name: 'USSTRocketry/Carrot-River', url: 'https://github.com/USSTRocketry/Carrot-River' }
@@ -196,9 +196,9 @@ const BLOCKS = [
     id: 'block-3',
     code: 'Block 3',
     name: 'Software Simulator',
-    subtitle: 'Recovery & verification',
+    subtitle: 'Recovery & verification · Off-hardware flight testing',
     color: '#f59e0b',
-    objective: 'OBJECTIVE Verify flight computer safely without flying the rocket',
+    objective: 'OBJECTIVE: Verify flight computer safely without flying the rocket',
     repos: [
       { name: 'USSTRocketry/Maidstone', url: 'https://github.com/USSTRocketry/Maidstone' }
     ],
@@ -212,9 +212,9 @@ const BLOCKS = [
     id: 'block-4',
     code: 'Block 4',
     name: 'RF Comms',
-    subtitle: 'LoRa SX1262 · telemetry',
+    subtitle: 'LoRa SX1262 · Framing, CRC & Telemetry',
     color: '#10b981',
-    objective: 'OBJECTIVE Reliable long-distance telemetry transmission',
+    objective: 'OBJECTIVE: Reliable long-distance telemetry transmission',
     repos: [
       { name: 'USSTRocketry/Turtleford', url: 'https://github.com/USSTRocketry/Turtleford' },
       { name: 'USSTRocketry/Radisson', url: 'https://github.com/USSTRocketry/Radisson' }
@@ -229,9 +229,9 @@ const BLOCKS = [
     id: 'block-5',
     code: 'Block 5',
     name: 'Ground Station',
-    subtitle: 'Web dashboard · live telemetry',
+    subtitle: 'Web dashboard · RP5 live telemetry & safety UI',
     color: '#14b8a6',
-    objective: 'OBJECTIVE Live telemetry visualization for ground launch crew',
+    objective: 'OBJECTIVE: Live telemetry visualization for ground launch crew',
     repos: [
       { name: 'USSTRocketry/Houston', url: 'https://github.com/USSTRocketry/Houston' }
     ],
@@ -245,9 +245,9 @@ const BLOCKS = [
     id: 'block-6',
     code: 'Block 6',
     name: 'Peripherals',
-    subtitle: 'Sensor & device drivers',
+    subtitle: 'Sensor & device drivers · Black box logging',
     color: '#6366f1',
-    objective: 'OBJECTIVE Clean, fault-tolerant device drivers for flight sensors',
+    objective: 'OBJECTIVE: Clean, fault-tolerant device drivers for flight sensors',
     repos: [
       { name: 'USSTRocketry/Maidstone', url: 'https://github.com/USSTRocketry/Maidstone' }
     ],
@@ -704,14 +704,17 @@ const TASKS = [
   }
 ];
 
-// State for Filtering
+// State for Filtering & UI
 let activeFilters = {
   view: 'hierarchy',
   search: '',
   blockId: 'all',
   status: 'all',
-  assignee: null
+  assignee: null,
+  unassignedOnly: false
 };
+
+const collapsedBlocks = new Set();
 
 // Guest Observer profile
 const GUEST_MEMBER = {
@@ -720,7 +723,7 @@ const GUEST_MEMBER = {
   handle: 'guest',
   role: 'Guest (Read Only)',
   avatar: '👀',
-  color: '#94a3b8',
+  color: '#64748b',
   flair: 'Viewing public board'
 };
 
@@ -742,6 +745,7 @@ function setActiveUser(userId) {
     currentUserId = userId;
     saveStoredState();
     renderAuthPill();
+    populateQuickAddBar();
     renderAll();
   }
 }
@@ -758,13 +762,14 @@ function loadStoredState() {
           const t = taskMap[pt.id];
           if (t) {
             t.status = pt.status;
-            t.assignees = pt.assignees;
+            t.assignees = Array.isArray(pt.assignees) ? pt.assignees : [];
             if (pt.checklist) t.checklist = pt.checklist;
             if (pt.completedChecks) t.completedChecks = pt.completedChecks;
-            if (pt.note) t.note = pt.note;
+            if (pt.note !== undefined) t.note = pt.note;
             if (pt.dependsOn) t.dependsOn = pt.dependsOn;
             if (pt.title) t.title = pt.title;
             if (pt.epic) t.epic = pt.epic;
+            if (pt.tags) t.tags = pt.tags;
           } else if (pt.id && pt.title) {
             TASKS.push(pt);
             taskMap[pt.id] = pt;
@@ -787,6 +792,11 @@ function loadStoredState() {
         }
       });
     }
+
+    const storedTheme = localStorage.getItem('usst_theme_v2');
+    if (storedTheme === 'dark' || storedTheme === 'light') {
+      applyTheme(storedTheme);
+    }
   } catch (e) {
     console.warn('Failed to load state from localStorage:', e);
   }
@@ -797,10 +807,35 @@ function saveStoredState() {
   try {
     localStorage.setItem('usst_tasks_v2', JSON.stringify(TASKS));
     localStorage.setItem('usst_active_user_v2', currentUserId);
-    const memberCustom = Object.fromEntries(TEAM_MEMBERS.map(m => [m.id, { avatar: m.avatar, flair: m.flair, color: m.color }]));
+    const memberCustom = Object.fromEntries(
+      TEAM_MEMBERS.map(m => [m.id, { avatar: m.avatar, flair: m.flair, color: m.color }])
+    );
     localStorage.setItem('usst_members_v2', JSON.stringify(memberCustom));
   } catch (e) {
     console.warn('Failed to save state to localStorage:', e);
+  }
+}
+
+function applyTheme(theme) {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-theme', theme);
+  const sunIcon = document.getElementById('themeIconSun');
+  const moonIcon = document.getElementById('themeIconMoon');
+  if (sunIcon && moonIcon) {
+    if (theme === 'dark') {
+      sunIcon.style.display = 'block';
+      moonIcon.style.display = 'none';
+    } else {
+      sunIcon.style.display = 'none';
+      moonIcon.style.display = 'block';
+    }
+  }
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('usst_theme_v2', theme);
+    } catch (e) {
+      // ignore storage error
+    }
   }
 }
 
@@ -829,6 +864,9 @@ function getStatusLabel(status) {
 function filterTasks() {
   return TASKS.filter(task => {
     if (activeFilters.blockId !== 'all' && task.blockId !== activeFilters.blockId) {
+      return false;
+    }
+    if (activeFilters.unassignedOnly && task.assignees.length > 0) {
       return false;
     }
     if (activeFilters.assignee && !task.assignees.includes(activeFilters.assignee)) {
@@ -863,6 +901,35 @@ function filterTasks() {
   });
 }
 
+function syncPresetHighlight() {
+  if (typeof document === 'undefined') return;
+  const presets = document.querySelectorAll('#quickFilterPresets .preset-pill');
+  if (!presets.length) return;
+
+  const user = getActiveUser();
+  let activePreset = '';
+  if (
+    activeFilters.blockId === 'all' &&
+    activeFilters.status === 'all' &&
+    !activeFilters.assignee &&
+    !activeFilters.unassignedOnly
+  ) {
+    activePreset = 'all';
+  } else if (activeFilters.assignee === user.id && !activeFilters.unassignedOnly && activeFilters.status === 'all') {
+    activePreset = 'mine';
+  } else if (activeFilters.unassignedOnly && activeFilters.status === 'unblocked') {
+    activePreset = 'pickup';
+  } else if (!activeFilters.unassignedOnly && !activeFilters.assignee && activeFilters.status === 'unblocked') {
+    activePreset = 'unblocked';
+  } else if (!activeFilters.unassignedOnly && !activeFilters.assignee && activeFilters.status === 'blocked') {
+    activePreset = 'blocked';
+  }
+
+  presets.forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-preset') === activePreset);
+  });
+}
+
 // Render Functions
 function renderAuthPill() {
   if (typeof document === 'undefined') return;
@@ -875,23 +942,23 @@ function renderAuthPill() {
   const dotEl = pill.querySelector('.status-dot');
 
   if (avatarEl) avatarEl.textContent = user.avatar;
-  if (nameEl) nameEl.textContent = `${user.name} (${user.id === 'joseph' || user.id === 'david' ? 'Lead' : user.id === 'guest' ? 'Guest' : 'Dev'})`;
+  if (nameEl) {
+    nameEl.textContent = `${user.name} (${user.id === 'joseph' || user.id === 'david' ? 'Lead' : user.id === 'guest' ? 'Guest' : 'Dev'})`;
+  }
   if (roleEl) {
     if (user.id === 'guest') {
       roleEl.textContent = 'Read Only · Sign-in Required';
-      roleEl.style.color = '#94a3b8';
+      roleEl.style.color = 'var(--text-muted)';
       if (dotEl) {
         dotEl.classList.remove('verified');
-        dotEl.style.background = '#64748b';
-        dotEl.style.boxShadow = 'none';
+        dotEl.style.background = '#94a3b8';
       }
     } else {
       roleEl.textContent = user.id === 'joseph' || user.id === 'david' ? 'Full Access · GitHub Verified' : 'Write Access · GitHub Verified';
-      roleEl.style.color = '#10b981';
+      roleEl.style.color = 'var(--status-done)';
       if (dotEl) {
         dotEl.classList.add('verified');
-        dotEl.style.background = '#10b981';
-        dotEl.style.boxShadow = '0 0 8px #10b981';
+        dotEl.style.background = 'var(--status-done)';
       }
     }
   }
@@ -901,18 +968,20 @@ function renderRoster() {
   if (typeof document === 'undefined') return;
   const container = document.getElementById('teamRosterList');
   if (!container) return;
+
   container.innerHTML = TEAM_MEMBERS.map(m => {
     const isActive = activeFilters.assignee === m.id;
+    const assignedCount = TASKS.filter(t => t.assignees.includes(m.id) && t.status !== 'done').length;
     return `
       <div class="member-pill ${isActive ? 'active' : ''}" 
            style="--member-color: ${m.color}" 
            data-member="${m.id}"
            role="button"
            tabindex="0"
-           title="Click to filter by ${m.name}">
+           title="${m.name} (${m.role}) — ${m.flair}. Click to filter.">
         <div class="member-avatar">${m.avatar}</div>
         <div class="member-info">
-          <span class="member-name">${m.name}</span>
+          <span class="member-name">${m.name} <small class="member-count">${assignedCount}</small></span>
           <span class="member-flair">${m.flair}</span>
         </div>
       </div>
@@ -920,17 +989,17 @@ function renderRoster() {
   }).join('');
 
   container.querySelectorAll('.member-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
+    const toggleMember = () => {
       const id = pill.getAttribute('data-member');
+      activeFilters.unassignedOnly = false;
       activeFilters.assignee = activeFilters.assignee === id ? null : id;
       renderAll();
-    });
+    };
+    pill.addEventListener('click', toggleMember);
     pill.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        const id = pill.getAttribute('data-member');
-        activeFilters.assignee = activeFilters.assignee === id ? null : id;
-        renderAll();
+        toggleMember();
       }
     });
   });
@@ -943,51 +1012,78 @@ function renderMetrics(filtered) {
   const testing = filtered.filter(t => t.status === 'testing').length;
   const ready = filtered.filter(t => !isTaskBlocked(t) && t.status !== 'done').length;
   const blocked = filtered.filter(t => isTaskBlocked(t)).length;
+  const doneCount = filtered.filter(t => t.status === 'done').length;
 
   strip.innerHTML = `
-    <div class="metric-card">
+    <div class="metric-card" style="--metric-accent: var(--text-muted)">
       <span class="metric-label">VISIBLE TASKS</span>
       <span class="metric-value">${filtered.length}</span>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" style="--metric-accent: var(--status-done)">
       <span class="metric-label">READY / UNBLOCKED</span>
-      <span class="metric-value" style="color: #10b981">${ready}</span>
+      <span class="metric-value" style="color: var(--status-done)">${ready}</span>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" style="--metric-accent: var(--status-progress)">
       <span class="metric-label">IN PROGRESS</span>
-      <span class="metric-value" style="color: #60a5fa">${inProgress}</span>
+      <span class="metric-value" style="color: var(--status-progress)">${inProgress}</span>
     </div>
-    <div class="metric-card">
+    <div class="metric-card" style="--metric-accent: var(--status-testing)">
       <span class="metric-label">TESTING & VERIFY</span>
-      <span class="metric-value" style="color: #c084fc">${testing}</span>
+      <span class="metric-value" style="color: var(--status-testing)">${testing}</span>
     </div>
-    <div class="metric-card">
-      <span class="metric-label">WAITING ON PREDECESSOR / HW</span>
-      <span class="metric-value" style="color: #fb7185">${blocked}</span>
+    <div class="metric-card" style="--metric-accent: var(--status-blocked)">
+      <span class="metric-label">BLOCKED / WAITING ON HW</span>
+      <span class="metric-value" style="color: var(--status-blocked)">${blocked}</span>
+    </div>
+    <div class="metric-card" style="--metric-accent: var(--status-done)">
+      <span class="metric-label">COMPLETED</span>
+      <span class="metric-value">${doneCount}</span>
     </div>
   `;
 }
 
 function renderTaskCardHTML(task, blockColor) {
+  const user = getActiveUser();
+  const isGuest = user.id === 'guest';
+  const isAssignedToMe = task.assignees.includes(user.id);
   const downstream = TASKS.filter(t => t.dependsOn.includes(task.id));
+
   const assigneesHTML = task.assignees.length > 0
     ? task.assignees.map(id => {
         const m = memberMap[id];
-        return `<span class="assignee-chip">${m ? m.avatar : '👤'} ${m ? m.name : id}</span>`;
+        return `<span class="assignee-chip" title="${m ? m.role : id}">${m ? m.avatar : '👤'} ${m ? m.name : id}</span>`;
       }).join('')
-    : `<span class="assignee-chip" style="opacity:0.6">Unassigned</span>`;
+    : `<span class="assignee-chip unassigned-chip">Unassigned</span>`;
 
-  const checklistHTML = task.checklist && task.checklist.length > 0
-    ? `<ul class="task-checklist">
-        ${task.checklist.map((item, idx) => {
-          const isDone = Array.isArray(task.completedChecks) && task.completedChecks.includes(idx);
-          return `<li style="${isDone ? 'text-decoration: line-through; opacity: 0.6;' : ''}">▫ ${item}</li>`;
-        }).join('')}
-       </ul>`
+  const quickClaimBtnHTML = (!isGuest && !isAssignedToMe)
+    ? `<button type="button" class="quick-claim-btn" data-quick-claim="${task.id}" title="Assign yourself (${user.name}) to ${task.id}">+ Claim</button>`
+    : '';
+
+  const checklistTotal = task.checklist ? task.checklist.length : 0;
+  const completedCount = Array.isArray(task.completedChecks) ? task.completedChecks.length : 0;
+
+  const checklistHTML = checklistTotal > 0
+    ? `<div class="card-checklist-wrap">
+        <div class="card-checklist-header">
+          <span>Sub-steps (${completedCount}/${checklistTotal})</span>
+          <div class="mini-progress-track">
+            <div class="mini-progress-fill" style="width: ${Math.round((completedCount / checklistTotal) * 100)}%"></div>
+          </div>
+        </div>
+        <ul class="task-checklist">
+          ${task.checklist.map((item, idx) => {
+            const isDone = Array.isArray(task.completedChecks) && task.completedChecks.includes(idx);
+            return `<li class="${isDone ? 'is-checked' : ''}" data-card-check="${task.id}:${idx}" title="Click to toggle step">
+              <span class="check-box-icon">${isDone ? '✓' : ''}</span>
+              <span>${item}</span>
+            </li>`;
+          }).join('')}
+        </ul>
+       </div>`
     : '';
 
   const noteHTML = task.note
-    ? `<div class="task-note">💬 ${task.note}</div>`
+    ? `<div class="task-note">${task.note}</div>`
     : '';
 
   const unmet = task.dependsOn.filter(d => taskMap[d] && taskMap[d].status !== 'done');
@@ -995,78 +1091,105 @@ function renderTaskCardHTML(task, blockColor) {
 
   const depHTML = (task.dependsOn.length > 0 || downstream.length > 0)
     ? `<div class="dep-box">
-        ${task.dependsOn.length > 0 ? `<div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">${unmet.length > 0 ? '🔒 Waiting on' : '✅ Met'}: <strong>${task.dependsOn.join(', ')}</strong></div>` : ''}
-        ${downstream.length > 0 ? `<div class="dep-line leads-to">➡️ Unlocks: <strong>${downstream.map(d => d.id).join(', ')}</strong></div>` : ''}
+        ${task.dependsOn.length > 0 ? `<div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">${unmet.length > 0 ? 'Requires' : 'Met'}: <strong>${task.dependsOn.join(', ')}</strong></div>` : ''}
+        ${downstream.length > 0 ? `<div class="dep-line leads-to">Unlocks: <strong>${downstream.map(d => d.id).join(', ')}</strong></div>` : ''}
        </div>`
     : '';
 
   const blockerTag = isBlocked
-    ? `<span class="blocker-indicator pulse">${task.status === 'blocked' ? '🔒 Hardware Blocked :(' : `🔒 Waiting on ${unmet.join(', ')}`}</span>`
+    ? `<span class="blocker-indicator pulse">${task.status === 'blocked' ? 'Blocked: Waiting on Hardware' : `Waiting on ${unmet.join(', ')}`}</span>`
+    : '';
+
+  const tagsHTML = (task.tags && task.tags.length > 0)
+    ? `<div class="card-tags-row">${task.tags.map(tag => `<span class="task-tag">${tag}</span>`).join('')}</div>`
     : '';
 
   return `
-    <article class="task-card ${isBlocked ? 'is-blocked' : ''}" style="--block-color: ${blockColor}" data-task-id="${task.id}" tabindex="0" role="button" title="Click to view details or update task">
+    <article class="task-card ${isBlocked ? 'is-blocked' : ''} ${task.status === 'done' ? 'is-done' : ''}"
+             style="--block-color: ${blockColor}"
+             data-task-id="${task.id}"
+             draggable="${!isGuest}"
+             tabindex="0"
+             role="button"
+             title="Click to open ${task.id} details">
       <div class="task-top">
-        <span class="task-id">${task.id} · ${task.epic}</span>
-        <span class="status-badge status-${task.status}">${getStatusLabel(task.status)}</span>
+        <div class="task-meta-left">
+          <span class="task-id">${task.id}</span>
+          <span class="task-epic-pill">${task.epic}</span>
+        </div>
+        <div class="task-status-wrap">
+          <span class="status-badge status-${task.status}">${getStatusLabel(task.status)}</span>
+          ${!isGuest ? `
+            <select class="card-status-select" data-quick-status="${task.id}" aria-label="Change status for ${task.id}" title="Quick-change status">
+              <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Backlog</option>
+              <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+              <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>Testing & Verify</option>
+              <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Waiting on HW</option>
+              <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed</option>
+            </select>
+          ` : ''}
+        </div>
       </div>
+
       <h3 class="task-title">${task.title}</h3>
       ${blockerTag}
       ${checklistHTML}
       ${noteHTML}
       ${depHTML}
+      ${tagsHTML}
+
       <div class="task-footer">
-        <div class="assignees-row">${assigneesHTML}</div>
+        <div class="assignees-row">
+          ${assigneesHTML}
+          ${quickClaimBtnHTML}
+        </div>
         ${task.reactions ? `<span class="reactions-pill">${task.reactions}</span>` : ''}
       </div>
     </article>
   `;
 }
 
-function renderHierarchyView(filtered) {
-  const container = document.getElementById('hierarchyContainer');
+function attachCardInteractions(container) {
   if (!container) return;
-  const blocksToRender = BLOCKS.filter(b =>
-    activeFilters.blockId === 'all' || b.id === activeFilters.blockId
-  );
 
-  container.innerHTML = blocksToRender.map(block => {
-    const blockTasks = filtered.filter(t => t.blockId === block.id);
-    if (blockTasks.length === 0 && activeFilters.search !== '') return '';
+  // Quick Status Dropdown on card
+  container.querySelectorAll('.card-status-select').forEach(select => {
+    select.addEventListener('click', e => e.stopPropagation());
+    select.addEventListener('change', e => {
+      e.stopPropagation();
+      const taskId = select.getAttribute('data-quick-status');
+      if (taskId) updateTaskStatus(taskId, e.target.value);
+    });
+  });
 
-    const reposHTML = block.repos.map(r =>
-      `<a href="${r.url}" target="_blank" rel="noopener" class="repo-pill" onclick="event.stopPropagation()">📦 ${r.name}</a>`
-    ).join('');
+  // Quick Claim Button on card
+  container.querySelectorAll('[data-quick-claim]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const taskId = btn.getAttribute('data-quick-claim');
+      const user = getActiveUser();
+      if (taskId && user.id !== 'guest') {
+        claimTask(taskId, user.id);
+      }
+    });
+  });
 
-    const deliverablesHTML = block.deliverables.map(d =>
-      `<span class="deliverable-tag">🎯 ${d}</span>`
-    ).join('');
+  // Direct Checklist Toggle on card
+  container.querySelectorAll('[data-card-check]').forEach(li => {
+    li.addEventListener('click', e => {
+      e.stopPropagation();
+      const user = getActiveUser();
+      if (user.id === 'guest') return;
+      const raw = li.getAttribute('data-card-check') || '';
+      const [taskId, idxStr] = raw.split(':');
+      const idx = parseInt(idxStr, 10);
+      if (taskId && !isNaN(idx)) {
+        toggleChecklistItem(taskId, idx);
+      }
+    });
+  });
 
-    return `
-      <section class="block-section" style="--block-color: ${block.color}">
-        <div class="block-header">
-          <div class="block-title-area">
-            <h2>
-              <span style="color: ${block.color}">${block.code}</span> · ${block.name}
-            </h2>
-            <p class="block-subtitle">${block.subtitle}</p>
-            <div class="objective-banner">${block.objective}</div>
-          </div>
-          <div class="repo-links">${reposHTML}</div>
-        </div>
-
-        <div class="deliverables-strip">
-          <strong style="font-size:0.75rem; color:#94a3b8;">DELIVERABLES:</strong>
-          ${deliverablesHTML}
-        </div>
-
-        <div class="tasks-grid">
-          ${blockTasks.map(t => renderTaskCardHTML(t, block.color)).join('')}
-        </div>
-      </section>
-    `;
-  }).join('');
-
+  // Card Click & Drag Events
   container.querySelectorAll('.task-card').forEach(card => {
     card.addEventListener('click', () => {
       const taskId = card.getAttribute('data-task-id');
@@ -1079,7 +1202,114 @@ function renderHierarchyView(filtered) {
         if (taskId) openTaskModal(taskId);
       }
     });
+    card.addEventListener('dragstart', e => {
+      const taskId = card.getAttribute('data-task-id');
+      if (taskId && e.dataTransfer) {
+        e.dataTransfer.setData('text/plain', taskId);
+        card.classList.add('dragging');
+      }
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+    });
   });
+}
+
+function renderHierarchyView(filtered) {
+  const container = document.getElementById('hierarchyContainer');
+  if (!container) return;
+  const blocksToRender = BLOCKS.filter(b =>
+    activeFilters.blockId === 'all' || b.id === activeFilters.blockId
+  );
+
+  const html = blocksToRender.map(block => {
+    const blockTasks = filtered.filter(t => t.blockId === block.id);
+    const allBlockTasks = TASKS.filter(t => t.blockId === block.id);
+    const doneBlockTasks = allBlockTasks.filter(t => t.status === 'done').length;
+    const pct = allBlockTasks.length > 0 ? Math.round((doneBlockTasks / allBlockTasks.length) * 100) : 0;
+
+    if (blockTasks.length === 0 && (activeFilters.search !== '' || activeFilters.assignee || activeFilters.status !== 'all' || activeFilters.unassignedOnly)) {
+      return '';
+    }
+
+    const isCollapsed = collapsedBlocks.has(block.id);
+
+    const reposHTML = block.repos.map(r =>
+      `<a href="${r.url}" target="_blank" rel="noopener" class="repo-pill" onclick="event.stopPropagation()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+        ${r.name}
+      </a>`
+    ).join('');
+
+    const deliverablesHTML = block.deliverables.map(d =>
+      `<span class="deliverable-tag">${d}</span>`
+    ).join('');
+
+    return `
+      <section class="block-section ${isCollapsed ? 'is-collapsed' : ''}" style="--block-color: ${block.color}" data-block-section="${block.id}">
+        <div class="block-header">
+          <div class="block-title-area">
+            <div class="block-title-top">
+              <span class="block-code-pill">${block.code}</span>
+              <h2>${block.name}</h2>
+              <span class="block-progress-pill" title="${doneBlockTasks} of ${allBlockTasks.length} tasks completed">${doneBlockTasks}/${allBlockTasks.length} Done (${pct}%)</span>
+            </div>
+            <p class="block-subtitle">${block.subtitle}</p>
+            <div class="objective-banner">${block.objective}</div>
+          </div>
+
+          <div class="block-header-actions">
+            <div class="repo-links">${reposHTML}</div>
+            <button type="button" class="btn btn-secondary btn-sm" data-add-to-block="${block.id}" title="Add a task directly to ${block.code}">
+              + Add Task
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" data-toggle-block="${block.id}" title="${isCollapsed ? 'Expand block' : 'Collapse block'}">
+              ${isCollapsed ? 'Expand ▾' : 'Collapse ▴'}
+            </button>
+          </div>
+        </div>
+
+        <div class="deliverables-strip">
+          <span class="deliverables-label">KEY DELIVERABLES:</span>
+          ${deliverablesHTML}
+        </div>
+
+        ${!isCollapsed ? `
+          <div class="tasks-grid">
+            ${blockTasks.length > 0
+              ? blockTasks.map(t => renderTaskCardHTML(t, block.color)).join('')
+              : `<div class="empty-block-msg">No tasks match the current filter in ${block.code}.</div>`
+            }
+          </div>
+        ` : ''}
+      </section>
+    `;
+  }).join('');
+
+  container.innerHTML = html || `<div class="empty-workspace-state">No tasks match your current filters. Click <strong>Reset</strong> to view all subsystem tasks.</div>`;
+
+  // Contextual "+ Add Task" button per block
+  container.querySelectorAll('[data-add-to-block]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const blockId = btn.getAttribute('data-add-to-block');
+      openNewTaskModal({ defaultBlockId: blockId });
+    });
+  });
+
+  // Collapse / Expand toggle per block
+  container.querySelectorAll('[data-toggle-block]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const blockId = btn.getAttribute('data-toggle-block');
+      if (collapsedBlocks.has(blockId)) {
+        collapsedBlocks.delete(blockId);
+      } else {
+        collapsedBlocks.add(blockId);
+      }
+      renderHierarchyView(filterTasks());
+    });
+  });
+
+  attachCardInteractions(container);
 }
 
 function renderDependencyChains() {
@@ -1097,6 +1327,12 @@ function renderDependencyChains() {
       ids: ['B1-01', 'B1-02', 'B1-03', 'B1-05', 'B1-07', 'B1-08', 'B1-09']
     },
     {
+      blockId: 'block-1',
+      title: 'Block 1 & 3 & 6 · HAL Abstraction to Simulator & GPS Driver Chain',
+      color: '#6366f1',
+      ids: ['B1-03', 'B1-04', 'B3-01', 'B3-03']
+    },
+    {
       blockId: 'block-2',
       title: 'Block 2 · Kalman Filter (KF -> UKF) Maidstone Integration Pipeline',
       color: '#06b6d4',
@@ -1110,14 +1346,29 @@ function renderDependencyChains() {
     }
   ];
 
-  const visibleChains = chains.filter(c => 
-    activeFilters.blockId === 'all' || 
-    c.blockId === activeFilters.blockId || 
-    (c.blockId === 'block-4' && activeFilters.blockId === 'block-5')
+  // Also include any newly created or additional tasks that have dependencies not already in the main chains
+  const coveredIds = new Set(chains.flatMap(c => c.ids));
+  const extraDepTasks = TASKS.filter(t => t.dependsOn && t.dependsOn.length > 0 && !coveredIds.has(t.id));
+  if (extraDepTasks.length > 0) {
+    extraDepTasks.forEach(t => {
+      const b = blockMap[t.blockId] || BLOCKS[0];
+      chains.push({
+        blockId: b.id,
+        title: `${b.code} · ${t.epic} Dependency Sequence`,
+        color: b.color,
+        ids: [...t.dependsOn, t.id]
+      });
+    });
+  }
+
+  const visibleChains = chains.filter(c =>
+    activeFilters.blockId === 'all' ||
+    c.blockId === activeFilters.blockId ||
+    c.ids.some(id => taskMap[id]?.blockId === activeFilters.blockId)
   );
 
   if (visibleChains.length === 0) {
-    container.innerHTML = `<div class="empty-state" style="padding: 2rem; text-align: center; color: var(--text-muted); background: var(--bg-panel); border-radius: 12px; border: 1px dashed var(--border-subtle);">No dependency flowchart defined for the selected block filter. Flowcharts are active for Block 1 (Zephyr), Block 2 (KF/UKF), and Block 4 & 5 (Telemetry).</div>`;
+    container.innerHTML = `<div class="empty-workspace-state">No dependency chains match the selected Block filter. Select "All Blocks" to inspect all subsystem pipelines.</div>`;
     return;
   }
 
@@ -1132,7 +1383,7 @@ function renderDependencyChains() {
 
       let blockerBadge = '';
       if (isBlocked) {
-        blockerBadge = `<div class="blocker-indicator pulse" style="font-size:0.68rem; margin-top:0.25rem;">🔒 ${t.status === 'blocked' ? 'Hardware Blocked' : `Waiting on ${unmet.join(', ')}`}</div>`;
+        blockerBadge = `<div class="blocker-indicator pulse">${t.status === 'blocked' ? 'Hardware Blocked' : `Waiting on ${unmet.join(', ')}`}</div>`;
       }
 
       return `
@@ -1141,16 +1392,16 @@ function renderDependencyChains() {
              data-task-id="${t.id}"
              role="button"
              tabindex="0"
-             title="Click to view details or update task">
+             title="Click to inspect or update ${t.id}">
           <div class="task-top">
             <span class="task-id">${t.id}</span>
             <span class="status-badge status-${t.status}">${getStatusLabel(t.status)}</span>
           </div>
-          <div style="font-weight:700; font-size:0.86rem; color:#f8fafc;">${t.title}</div>
+          <div class="flow-node-title">${t.title}</div>
           ${blockerBadge}
-          <div style="font-size:0.72rem; color:#94a3b8; margin-top:auto;">👤 ${assignees}</div>
+          <div class="flow-node-meta">👤 ${assignees}</div>
         </div>
-        ${idx < chain.ids.length - 1 ? '<div class="flow-arrow">➔</div>' : ''}
+        ${idx < chain.ids.length - 1 ? '<div class="flow-arrow" aria-hidden="true">→</div>' : ''}
       `;
     }).join('');
 
@@ -1181,42 +1432,68 @@ function renderKanbanView(filtered) {
   const container = document.getElementById('kanbanContainer');
   if (!container) return;
   const columns = [
-    { key: 'todo', label: '📌 Backlog / To Do' },
-    { key: 'blocked', label: '🔒 Waiting on Hardware' },
-    { key: 'in-progress', label: '⚡ In Progress' },
-    { key: 'testing', label: '🧪 Testing & Verification' },
-    { key: 'done', label: '🏁 Completed' }
+    { key: 'todo', label: 'Backlog / To Do', accent: 'var(--status-todo)' },
+    { key: 'blocked', label: 'Waiting on HW / Blocked', accent: 'var(--status-blocked)' },
+    { key: 'in-progress', label: 'In Progress', accent: 'var(--status-progress)' },
+    { key: 'testing', label: 'Testing & Verification', accent: 'var(--status-testing)' },
+    { key: 'done', label: 'Completed', accent: 'var(--status-done)' }
   ];
 
   container.innerHTML = columns.map(col => {
     const colTasks = filtered.filter(t => t.status === col.key);
     return `
-      <div class="kanban-col">
-        <div class="kanban-col-header">
-          <span>${col.label}</span>
-          <span class="kanban-count">${colTasks.length}</span>
+      <div class="kanban-col" data-kanban-status="${col.key}">
+        <div class="kanban-col-header" style="--col-accent: ${col.accent}">
+          <div class="kanban-col-title">
+            <span class="kanban-dot" style="background: ${col.accent}"></span>
+            <span>${col.label}</span>
+          </div>
+          <div class="kanban-col-actions">
+            <span class="kanban-count">${colTasks.length}</span>
+            <button type="button" class="kanban-add-btn" data-add-to-status="${col.key}" title="Add task to ${col.label}">+</button>
+          </div>
         </div>
-        ${colTasks.map(t => renderTaskCardHTML(t, blockMap[t.blockId]?.color || '#3b82f6')).join('')}
+        <div class="kanban-col-body">
+          ${colTasks.map(t => renderTaskCardHTML(t, blockMap[t.blockId]?.color || '#3b82f6')).join('')}
+        </div>
       </div>
     `;
   }).join('');
 
-  container.querySelectorAll('.task-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const taskId = card.getAttribute('data-task-id');
-      if (taskId) openTaskModal(taskId);
+  // Contextual "+ Add Task" button on Kanban column
+  container.querySelectorAll('[data-add-to-status]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const status = btn.getAttribute('data-add-to-status');
+      openNewTaskModal({ defaultStatus: status });
     });
-    card.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        const taskId = card.getAttribute('data-task-id');
-        if (taskId) openTaskModal(taskId);
+  });
+
+  // Drag-and-Drop support between Kanban columns
+  container.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', e => {
+      e.preventDefault();
+      col.classList.add('drag-over');
+    });
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const user = getActiveUser();
+      if (user.id === 'guest') return;
+      const taskId = e.dataTransfer?.getData('text/plain');
+      const targetStatus = col.getAttribute('data-kanban-status');
+      if (taskId && targetStatus && taskMap[taskId] && taskMap[taskId].status !== targetStatus) {
+        updateTaskStatus(taskId, targetStatus);
       }
     });
   });
+
+  attachCardInteractions(container);
 }
 
-// Modal implementations
+// Modal Implementations
 let currentModalTaskId = null;
 
 function openTaskModal(taskId) {
@@ -1254,14 +1531,27 @@ function openTaskModal(taskId) {
   const assigneesListHTML = task.assignees.length > 0
     ? task.assignees.map(id => {
         const m = memberMap[id];
-        return `<span class="assignee-chip" style="font-size:0.8rem; padding: 0.3rem 0.6rem;">${m ? m.avatar : '👤'} ${m ? m.name : id}</span>`;
+        return `<span class="assignee-chip">${m ? m.avatar : '👤'} ${m ? m.name : id}</span>`;
       }).join(' ')
-    : '<span style="color: var(--text-muted); font-size: 0.82rem;">Unassigned</span>';
+    : '<span class="muted-text">Currently Unassigned</span>';
 
-  const checklistInteractiveHTML = (task.checklist && task.checklist.length > 0)
-    ? `
-      <div class="modal-section">
-        <div class="modal-section-title">Checklist Progress (${completedCount}/${checklistTotal} · ${progressPct}%)</div>
+  const crewToggleGridHTML = !isGuest
+    ? `<div class="crew-assign-grid">
+        ${TEAM_MEMBERS.map(m => {
+          const active = task.assignees.includes(m.id);
+          return `<button type="button" class="crew-assign-chip ${active ? 'active' : ''}" data-toggle-assignee="${m.id}" style="--member-color: ${m.color}">
+            <span>${m.avatar}</span>
+            <span>${m.name}</span>
+            <span class="chip-check">${active ? '✓' : '+'}</span>
+          </button>`;
+        }).join('')}
+       </div>`
+    : '';
+
+  const checklistInteractiveHTML = `
+    <div class="modal-section">
+      <div class="modal-section-title">Checklist & Sub-Steps (${completedCount}/${checklistTotal} · ${progressPct}%)</div>
+      ${checklistTotal > 0 ? `
         <div class="progress-track"><div class="progress-fill" style="width: ${progressPct}%"></div></div>
         <div class="checklist-interactive">
           ${task.checklist.map((item, idx) => {
@@ -1274,96 +1564,131 @@ function openTaskModal(taskId) {
             `;
           }).join('')}
         </div>
-      </div>
-    `
-    : '';
+      ` : '<div class="muted-text">No checklist items yet. Break this task down into smaller steps below:</div>'}
+      ${!isGuest ? `
+        <div class="note-input-row">
+          <input type="text" class="form-input" id="modalNewStepInput" placeholder="Add a new checklist step..." />
+          <button type="button" class="btn btn-secondary" id="modalAddStepBtn">+ Add Step</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
 
   const blockerBanner = isBlocked
-    ? `<div class="blocker-indicator pulse" style="font-size:0.82rem; padding: 0.6rem 0.85rem; width: 100%;">
-        🔒 <strong>BLOCKED:</strong> ${task.status === 'blocked' ? 'Waiting on final sensor BOM from Hardware Team :(' : `Waiting on predecessor task(s): <strong>${unmet.join(', ')}</strong>`}
+    ? `<div class="status-banner banner-blocked">
+        <strong>BLOCKED:</strong> ${task.status === 'blocked' ? 'Waiting on final sensor BOM / hardware from Hardware Team' : `Waiting on predecessor task(s): <strong>${unmet.join(', ')}</strong>`}
        </div>`
     : (task.status === 'done'
-      ? `<div class="dep-line unblocked" style="font-size:0.82rem; padding: 0.6rem 0.85rem; background: rgba(16, 185, 129, 0.12); border-radius: 8px;">
-          🏁 <strong>COMPLETED:</strong> Verification complete & ready for flight integration.
+      ? `<div class="status-banner banner-done">
+          <strong>COMPLETED:</strong> Verification complete & ready for flight integration.
          </div>`
-      : `<div class="dep-line unblocked" style="font-size:0.82rem; padding: 0.6rem 0.85rem; background: rgba(16, 185, 129, 0.12); border-radius: 8px;">
-          ✅ <strong>READY:</strong> All prerequisite dependencies satisfied.
+      : `<div class="status-banner banner-ready">
+          <strong>READY TO WORK:</strong> All prerequisite dependencies are satisfied.
          </div>`);
+
+  // Candidate predecessor tasks in same or related blocks
+  const candidateDeps = TASKS.filter(t => t.id !== task.id && (t.blockId === task.blockId || task.dependsOn.includes(t.id)));
 
   if (taskBodyEl) {
     taskBodyEl.innerHTML = `
       <div>
         <h3 class="modal-task-title">${task.title}</h3>
-        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">Epic: ${task.epic}</div>
+        <div class="modal-epic-subtitle">Deliverable / Epic: <strong>${task.epic}</strong></div>
       </div>
 
       ${blockerBanner}
 
-      <div class="modal-section">
-        <div class="modal-section-title">Task Status</div>
-        <select class="form-select" id="modalStatusSelect" ${isGuest ? 'disabled' : ''}>
-          <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>📌 Backlog / To Do</option>
-          <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>⚡ In Progress</option>
-          <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>🧪 Testing & Verification</option>
-          <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>🔒 Waiting on Hardware :()</option>
-          <option value="done" ${task.status === 'done' ? 'selected' : ''}>🏁 Completed & Verified</option>
-        </select>
-        ${isGuest ? '<div class="role-gate-notice">Read-only mode. Switch active crew member in the top right to change status.</div>' : ''}
+      <div class="modal-two-col">
+        <div class="modal-section">
+          <div class="modal-section-title">Task Status</div>
+          <select class="form-select" id="modalStatusSelect" ${isGuest ? 'disabled' : ''}>
+            <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Backlog / To Do</option>
+            <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+            <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>Testing & Verification</option>
+            <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Waiting on Hardware</option>
+            <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed & Verified</option>
+          </select>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Quick Self-Assignment</div>
+          <div class="modal-claim-row">
+            ${!isGuest ? `
+              <button class="btn ${isAssigned ? 'btn-ghost' : 'btn-primary'} btn-full" id="modalClaimBtn">
+                ${isAssigned ? `✕ Remove Myself (${user.name})` : `+ Claim Task as ${user.name}`}
+              </button>
+            ` : '<div class="role-gate-notice">Read-only mode. Switch profile in top bar to edit.</div>'}
+          </div>
+        </div>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Crew Assignees</div>
-        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-          <div>${assigneesListHTML}</div>
-          ${!isGuest ? `
-            <button class="btn btn-secondary btn-sm" id="modalClaimBtn">
-              ${isAssigned ? `✕ Remove Myself` : `+ Claim as ${user.name}`}
-            </button>
-          ` : ''}
-        </div>
+        <div class="modal-section-title">Assigned Crew Members (Click to Assign / Unassign)</div>
+        <div style="margin-bottom: 0.35rem;">${assigneesListHTML}</div>
+        ${crewToggleGridHTML}
       </div>
 
       ${checklistInteractiveHTML}
 
       <div class="modal-section">
-        <div class="modal-section-title">Task Dependencies & Flow</div>
-        <div class="dep-box">
+        <div class="modal-section-title">Task Dependencies & Critical Path</div>
+        <div class="dep-box modal-dep-box">
           <div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">
-            ${task.dependsOn.length > 0 ? `<strong>Requires Predecessors:</strong> ${task.dependsOn.join(', ')} (${unmet.length > 0 ? '🔒 ' + unmet.join(', ') + ' not done' : '✅ all done'})` : '<em>No predecessor dependencies (Root Task)</em>'}
+            ${task.dependsOn.length > 0
+              ? `<strong>Requires Predecessors:</strong> ${task.dependsOn.map(d => `<button type="button" class="dep-jump-chip" data-jump-task="${d}">${d} (${taskMap[d]?.status || 'todo'})</button>`).join(' ')}`
+              : '<em>No predecessor dependencies (Root Task)</em>'}
           </div>
           <div class="dep-line leads-to">
-            ${downstream.length > 0 ? `<strong>Unlocks Downstream Tasks:</strong> ${downstream.map(d => d.id).join(', ')}` : '<em>No downstream dependents</em>'}
+            ${downstream.length > 0
+              ? `<strong>Unlocks Downstream:</strong> ${downstream.map(d => `<button type="button" class="dep-jump-chip" data-jump-task="${d.id}">${d.id}</button>`).join(' ')}`
+              : '<em>No downstream dependents</em>'}
           </div>
         </div>
+        ${!isGuest && candidateDeps.length > 0 ? `
+          <details class="dep-picker-details">
+            <summary>Edit Predecessor Dependencies (${task.dependsOn.length} selected)</summary>
+            <div class="dep-picker-list">
+              ${candidateDeps.map(cand => {
+                const isDep = task.dependsOn.includes(cand.id);
+                return `<button type="button" class="dep-toggle-option ${isDep ? 'active' : ''}" data-toggle-dep="${cand.id}">
+                  <span class="dep-opt-id">${cand.id}</span>
+                  <span class="dep-opt-title">${cand.title}</span>
+                  <span class="dep-opt-state">${isDep ? '✓ Linked' : '+ Link'}</span>
+                </button>`;
+              }).join('')}
+            </div>
+          </details>
+        ` : ''}
       </div>
 
       <div class="modal-section">
         <div class="modal-section-title">Developer Progress Log & Notes</div>
-        ${task.note ? `<div class="note-box">${task.note}</div>` : '<div style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No progress notes recorded yet.</div>'}
+        ${task.note ? `<div class="note-box">${task.note}</div>` : '<div class="muted-text">No progress notes recorded yet.</div>'}
         ${!isGuest ? `
           <div class="note-input-row">
-            <input type="text" class="form-input" id="modalNoteInput" placeholder="Add dated progress note as ${user.name}..." />
-            <button class="btn btn-secondary" id="modalAddNoteBtn">Post</button>
+            <input type="text" class="form-input" id="modalNoteInput" placeholder="Post dated update as ${user.name}..." />
+            <button class="btn btn-secondary" id="modalAddNoteBtn">Post Note</button>
           </div>
         ` : ''}
       </div>
 
       ${reposHTML ? `
         <div class="modal-section">
-          <div class="modal-section-title">Linked Repositories</div>
+          <div class="modal-section-title">Linked GitHub Repositories</div>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">${reposHTML}</div>
         </div>
       ` : ''}
 
       ${(user.id === 'david' || user.id === 'joseph') ? `
-        <div style="display:flex; justify-content:flex-end; margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-subtle);">
-          <button class="btn btn-ghost" id="modalDeleteTaskBtn" style="color:#f43f5e; border-color:rgba(244,63,94,0.3);">
-            🗑️ Delete Task (Lead Only)
+        <div class="modal-danger-zone">
+          <button class="btn btn-danger-ghost" id="modalDeleteTaskBtn">
+            Delete Task (Lead Only)
           </button>
         </div>
       ` : ''}
     `;
 
+    // Status change
     const statusSelect = document.getElementById('modalStatusSelect');
     if (statusSelect) {
       statusSelect.addEventListener('change', e => {
@@ -1372,6 +1697,7 @@ function openTaskModal(taskId) {
       });
     }
 
+    // Self claim button
     const claimBtn = document.getElementById('modalClaimBtn');
     if (claimBtn) {
       claimBtn.addEventListener('click', () => {
@@ -1380,6 +1706,71 @@ function openTaskModal(taskId) {
       });
     }
 
+    // Multi-member assignment chips
+    taskBodyEl.querySelectorAll('[data-toggle-assignee]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const memberId = btn.getAttribute('data-toggle-assignee');
+        if (memberId) {
+          claimTask(task.id, memberId);
+          openTaskModal(task.id);
+        }
+      });
+    });
+
+    // Jump to linked dependency task
+    taskBodyEl.querySelectorAll('[data-jump-task]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-jump-task');
+        if (targetId && taskMap[targetId]) {
+          openTaskModal(targetId);
+        }
+      });
+    });
+
+    // Toggle dependency link
+    taskBodyEl.querySelectorAll('[data-toggle-dep]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const depId = btn.getAttribute('data-toggle-dep');
+        if (!depId) return;
+        if (task.dependsOn.includes(depId)) {
+          task.dependsOn = task.dependsOn.filter(d => d !== depId);
+          addAuditLog(`Removed dependency ${depId} from ${task.id}`);
+        } else {
+          task.dependsOn.push(depId);
+          addAuditLog(`Added dependency ${depId} to ${task.id}`);
+        }
+        saveStoredState();
+        syncTaskToFirestore(task);
+        renderAll();
+        openTaskModal(task.id);
+      });
+    });
+
+    // Add new checklist step
+    const addStepBtn = document.getElementById('modalAddStepBtn');
+    const newStepInput = document.getElementById('modalNewStepInput');
+    if (addStepBtn && newStepInput) {
+      const handleAddStep = () => {
+        const val = newStepInput.value.trim();
+        if (!val) return;
+        if (!Array.isArray(task.checklist)) task.checklist = [];
+        task.checklist.push(val);
+        addAuditLog(`Added checklist step "${val}" to ${task.id}`);
+        saveStoredState();
+        syncTaskToFirestore(task);
+        renderAll();
+        openTaskModal(task.id);
+      };
+      addStepBtn.addEventListener('click', handleAddStep);
+      newStepInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAddStep();
+        }
+      });
+    }
+
+    // Delete task
     const deleteBtn = document.getElementById('modalDeleteTaskBtn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', () => {
@@ -1389,6 +1780,7 @@ function openTaskModal(taskId) {
       });
     }
 
+    // Checklist item toggle
     const checklistInputs = taskBodyEl.querySelectorAll('input[data-check-index]');
     checklistInputs.forEach(input => {
       input.addEventListener('change', () => {
@@ -1398,6 +1790,7 @@ function openTaskModal(taskId) {
       });
     });
 
+    // Add progress note
     const addNoteBtn = document.getElementById('modalAddNoteBtn');
     const noteInput = document.getElementById('modalNoteInput');
     if (addNoteBtn && noteInput) {
@@ -1429,7 +1822,7 @@ function closeTaskModal() {
   currentModalTaskId = null;
 }
 
-function openNewTaskModal() {
+function openNewTaskModal(options = {}) {
   if (typeof document === 'undefined') return;
   const modal = document.getElementById('taskDetailModal');
   if (!modal) return;
@@ -1439,60 +1832,85 @@ function openNewTaskModal() {
     return;
   }
 
+  const defaultBlockId = options.defaultBlockId || (activeFilters.blockId !== 'all' ? activeFilters.blockId : 'block-1');
+  const defaultStatus = options.defaultStatus || 'todo';
+  const selectedAssignees = new Set([user.id]);
+  const selectedDeps = new Set();
+
   const taskIdEl = document.getElementById('modalTaskId');
   const taskBlockEl = document.getElementById('modalTaskBlock');
   const taskBodyEl = document.getElementById('modalTaskBody');
 
-  if (taskIdEl) taskIdEl.textContent = 'NEW';
+  if (taskIdEl) taskIdEl.textContent = 'NEW TASK';
   if (taskBlockEl) {
-    taskBlockEl.textContent = 'Create New Task';
-    taskBlockEl.style.borderLeft = '3px solid #3b82f6';
+    taskBlockEl.textContent = 'Create Subsystem Task';
+    taskBlockEl.style.borderLeft = '3px solid #2563eb';
   }
 
   if (taskBodyEl) {
     taskBodyEl.innerHTML = `
       <div>
-        <h3 class="modal-task-title">Add New Subsystem Task</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
-          Assign to an engineering Block, configure dependencies, and track deliverables.
+        <h3 class="modal-task-title">Add New Engineering Task</h3>
+        <p class="modal-epic-subtitle">
+          Assign to a USST subsystem block, choose a deliverable epic, and link any prerequisite tasks.
         </p>
       </div>
 
-      <div class="modal-section">
-        <div class="modal-section-title">Subsystem Block</div>
-        <select class="form-select" id="newTaskBlockSelect">
-          ${BLOCKS.map(b => `<option value="${b.id}">${b.code}: ${b.name}</option>`).join('')}
-        </select>
+      <div class="modal-two-col">
+        <div class="modal-section">
+          <div class="modal-section-title">Subsystem Block</div>
+          <select class="form-select" id="newTaskBlockSelect">
+            ${BLOCKS.map(b => `<option value="${b.id}" ${b.id === defaultBlockId ? 'selected' : ''}>${b.code}:${b.name}</option>`).join('')}
+          </select>
+        </div>
+
+        <div class="modal-section">
+          <div class="modal-section-title">Initial Status</div>
+          <select class="form-select" id="newTaskStatusSelect">
+            <option value="todo" ${defaultStatus === 'todo' ? 'selected' : ''}>Backlog / To Do</option>
+            <option value="in-progress" ${defaultStatus === 'in-progress' ? 'selected' : ''}>In Progress</option>
+            <option value="testing" ${defaultStatus === 'testing' ? 'selected' : ''}>Testing & Verification</option>
+            <option value="blocked" ${defaultStatus === 'blocked' ? 'selected' : ''}>Blocked / Waiting on Hardware</option>
+          </select>
+        </div>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Task Title</div>
-        <input type="text" class="form-input" id="newTaskTitleInput" placeholder="e.g., Integrate high-rate baro sensor filter in C++" />
+        <div class="modal-section-title">Task Title *</div>
+        <input type="text" class="form-input" id="newTaskTitleInput" placeholder="e.g., Implement MS5611 barometer driver read/write over SPI" />
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Epic / Subsystem Deliverable</div>
-        <input type="text" class="form-input" id="newTaskEpicInput" placeholder="e.g., Flight Software Bring-up, Telemetry Stream" />
+        <div class="modal-section-title">Deliverable / Epic</div>
+        <input type="text" class="form-input" id="newTaskEpicInput" list="modalEpicSuggestions" placeholder="Select a block deliverable or type custom epic..." />
+        <datalist id="modalEpicSuggestions"></datalist>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Initial Status</div>
-        <select class="form-select" id="newTaskStatusSelect">
-          <option value="todo">📌 Backlog / To Do</option>
-          <option value="in-progress">⚡ In Progress</option>
-          <option value="testing">🧪 Testing & Verification</option>
-          <option value="blocked">🔒 Blocked / Waiting on Hardware</option>
-        </select>
+        <div class="modal-section-title">Assign Crew Members</div>
+        <div class="crew-assign-grid" id="newTaskAssigneesGrid">
+          ${TEAM_MEMBERS.map(m => {
+            const isSel = selectedAssignees.has(m.id);
+            return `<button type="button" class="crew-assign-chip ${isSel ? 'active' : ''}" data-new-assignee="${m.id}" style="--member-color: ${m.color}">
+              <span>${m.avatar}</span>
+              <span>${m.name}</span>
+              <span class="chip-check">${isSel ? '✓' : '+'}</span>
+            </button>`;
+          }).join('')}
+        </div>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Dependencies (Predecessors)</div>
-        <input type="text" class="form-input" id="newTaskDepsInput" placeholder="Comma-separated task IDs, e.g. B1-01, B1-03" />
+        <div class="modal-section-title">Dependencies (Predecessor Task IDs)</div>
+        <input type="text" class="form-input" id="newTaskDepsInput" placeholder="Click tasks below or type IDs (e.g. B1-01, B1-03)" />
+        <div class="dep-picker-list" id="newTaskDepPickerList" style="max-height: 135px; overflow-y: auto; margin-top: 0.35rem;">
+          <!-- Populated dynamically by selected Block -->
+        </div>
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Checklist Items (One per line)</div>
-        <textarea class="form-textarea" id="newTaskChecklistInput" placeholder="1. Formulate math&#10;2. MATLAB Prototype&#10;3. Flight C++ Integration"></textarea>
+        <div class="modal-section-title">Checklist Sub-Steps (One per line)</div>
+        <textarea class="form-textarea" id="newTaskChecklistInput" rows="3" placeholder="1. Read sensor datasheet&#10;2. Configure Device Tree overlay&#10;3. Verify telemetry output"></textarea>
       </div>
 
       <div class="modal-section">
@@ -1500,11 +1918,75 @@ function openNewTaskModal() {
         <input type="text" class="form-input" id="newTaskTagsInput" placeholder="Comma-separated tags, e.g. C++, RTOS, LoRa" />
       </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:0.75rem; border-top:1px solid var(--border-subtle); padding-top:0.75rem;">
+      <div class="modal-footer-actions">
         <button class="btn btn-ghost" id="cancelNewTaskBtn">Cancel</button>
         <button class="btn btn-primary" id="submitNewTaskBtn">＋ Add Task to Board</button>
       </div>
     `;
+
+    const blockSelectEl = document.getElementById('newTaskBlockSelect');
+    const depsInputEl = document.getElementById('newTaskDepsInput');
+    const depPickerEl = document.getElementById('newTaskDepPickerList');
+    const epicSuggestionsEl = document.getElementById('modalEpicSuggestions');
+
+    const refreshBlockContext = () => {
+      const blkId = blockSelectEl?.value || 'block-0';
+      const blk = blockMap[blkId] || BLOCKS[0];
+      if (epicSuggestionsEl) {
+        epicSuggestionsEl.innerHTML = blk.deliverables.map(d => `<option value="${d}"></option>`).join('');
+      }
+      if (depPickerEl) {
+        const blockTasks = TASKS.filter(t => t.blockId === blkId);
+        depPickerEl.innerHTML = blockTasks.length > 0
+          ? blockTasks.map(t => {
+              const active = selectedDeps.has(t.id);
+              return `<button type="button" class="dep-toggle-option ${active ? 'active' : ''}" data-pick-dep="${t.id}">
+                <span class="dep-opt-id">${t.id}</span>
+                <span class="dep-opt-title">${t.title}</span>
+                <span class="dep-opt-state">${active ? '✓ Selected' : '+ Select'}</span>
+              </button>`;
+            }).join('')
+          : `<div class="muted-text" style="padding:0.4rem;">No existing tasks in this block yet.</div>`;
+
+        depPickerEl.querySelectorAll('[data-pick-dep]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const id = btn.getAttribute('data-pick-dep');
+            if (!id) return;
+            if (selectedDeps.has(id)) {
+              selectedDeps.delete(id);
+            } else {
+              selectedDeps.add(id);
+            }
+            if (depsInputEl) {
+              depsInputEl.value = Array.from(selectedDeps).join(', ');
+            }
+            refreshBlockContext();
+          });
+        });
+      }
+    };
+
+    refreshBlockContext();
+    blockSelectEl?.addEventListener('change', refreshBlockContext);
+
+    // Assignee chip toggling
+    taskBodyEl.querySelectorAll('[data-new-assignee]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mId = btn.getAttribute('data-new-assignee');
+        if (!mId) return;
+        if (selectedAssignees.has(mId)) {
+          selectedAssignees.delete(mId);
+          btn.classList.remove('active');
+          const chk = btn.querySelector('.chip-check');
+          if (chk) chk.textContent = '+';
+        } else {
+          selectedAssignees.add(mId);
+          btn.classList.add('active');
+          const chk = btn.querySelector('.chip-check');
+          if (chk) chk.textContent = '✓';
+        }
+      });
+    });
 
     document.getElementById('cancelNewTaskBtn')?.addEventListener('click', closeTaskModal);
     document.getElementById('submitNewTaskBtn')?.addEventListener('click', () => {
@@ -1528,7 +2010,7 @@ function openNewTaskModal() {
         title,
         epic,
         status,
-        assignees: [user.id],
+        assignees: Array.from(selectedAssignees),
         dependsOn,
         checklist,
         tags
@@ -1552,35 +2034,35 @@ function openProfileModal() {
   bodyEl.innerHTML = `
     <div class="modal-section">
       <div class="modal-section-title">Switch Active USST Account / Role</div>
-      <p style="font-size:0.8rem; color:var(--text-muted);">
-        GitHub OAuth simulates team member access. Select your identity to claim tasks, post progress updates, and customize your flight badge:
+      <p class="modal-epic-subtitle">
+        Select your USST developer profile to claim tasks, post progress updates, and customize your badge:
       </p>
-      <div style="display:flex; flex-direction:column; gap:0.45rem; margin-top:0.4rem;">
+      <div class="profile-switcher-list">
         ${TEAM_MEMBERS.map(m => `
-          <div class="checklist-item-interactive ${currentUserId === m.id ? 'active' : ''}" 
+          <div class="checklist-item-interactive ${currentUserId === m.id ? 'active-profile-row' : ''}" 
                data-switch-user="${m.id}" 
-               style="justify-content:space-between; ${currentUserId === m.id ? 'border: 2px solid ' + m.color + '; background: rgba(59,130,246,0.15);' : ''}">
-            <div style="display:flex; align-items:center; gap:0.6rem;">
-              <span style="font-size:1.2rem;">${m.avatar}</span>
+               style="justify-content:space-between; --member-color: ${m.color}">
+            <div style="display:flex; align-items:center; gap:0.65rem;">
+              <span style="font-size:1.25rem;">${m.avatar}</span>
               <div>
-                <strong>${m.name}</strong> <small style="color:var(--text-muted);">(@${m.handle})</small>
-                <div style="font-size:0.7rem; color:var(--text-muted);">${m.flair}</div>
+                <strong>${m.name}</strong> <small class="muted-text">(@${m.handle})</small>
+                <div class="muted-text" style="font-size:0.72rem;">${m.flair}</div>
               </div>
             </div>
-            <span class="status-badge" style="background: rgba(255,255,255,0.08);">${m.id === 'joseph' || m.id === 'david' ? 'Lead' : 'Developer'}</span>
+            <span class="status-badge status-${m.id === 'joseph' \vert{}\vert{} m.id === 'david' ? 'in-progress' : 'todo'}">${m.id === 'joseph' || m.id === 'david' ? 'Lead' : 'Developer'}</span>
           </div>
         `).join('')}
-        <div class="checklist-item-interactive ${currentUserId === 'guest' ? 'active' : ''}" 
+        <div class="checklist-item-interactive ${currentUserId === 'guest' ? 'active-profile-row' : ''}" 
              data-switch-user="guest" 
-             style="justify-content:space-between; ${currentUserId === 'guest' ? 'border: 2px solid #94a3b8; background: rgba(255,255,255,0.1);' : ''}">
-          <div style="display:flex; align-items:center; gap:0.6rem;">
-            <span style="font-size:1.2rem;">👀</span>
+             style="justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:0.65rem;">
+            <span style="font-size:1.25rem;">👀</span>
             <div>
               <strong>Guest Observer</strong>
-              <div style="font-size:0.7rem; color:var(--text-muted);">Public Read-Only Access</div>
+              <div class="muted-text" style="font-size:0.72rem;">Public Read-Only Access</div>
             </div>
           </div>
-          <span class="status-badge" style="background: rgba(255,255,255,0.08);">Read Only</span>
+          <span class="status-badge status-todo">Read Only</span>
         </div>
       </div>
     </div>
@@ -1590,16 +2072,16 @@ function openProfileModal() {
         <div class="modal-section-title">Customize Fun Avatar Icon (${user.name})</div>
         <div class="avatar-picker-grid">
           ${FUN_AVATAR_PACK.map(emoji => `
-            <button class="avatar-opt-btn ${user.avatar === emoji ? 'active' : ''}" data-avatar="${emoji}">${emoji}</button>
+            <button type="button" class="avatar-opt-btn ${user.avatar === emoji ? 'active' : ''}" data-avatar="${emoji}">${emoji}</button>
           `).join('')}
         </div>
       </div>
 
       <div class="modal-section">
         <div class="modal-section-title">Crew Accent Color</div>
-        <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin:0.35rem 0;">
+        <div class="color-picker-row">
           ${FUN_COLOR_PALETTE.map(c => `
-            <button class="color-swatch-btn ${user.color === c ? 'active' : ''}" data-color="${c}" title="${c}" style="width:26px; height:26px; border-radius:50%; background:${c}; border:${user.color === c ? '2px solid #fff' : '2px solid transparent'}; cursor:pointer; transform:${user.color === c ? 'scale(1.15)' : 'none'};"></button>
+            <button type="button" class="color-swatch-btn ${user.color === c ? 'active' : ''}" data-color="${c}" title="${c}" style="background:${c};"></button>
           `).join('')}
         </div>
       </div>
@@ -1611,25 +2093,25 @@ function openProfileModal() {
     ` : ''}
 
     <div class="modal-section">
-      <div class="modal-section-title">Mission Control Audit Trail (${auditLog.length} Events)</div>
-      <div class="audit-feed" style="display:flex; flex-direction:column; gap:0.4rem; max-height:160px; overflow-y:auto; padding-right:0.25rem;">
+      <div class="modal-section-title">Mission Control Activity & Audit Log (${auditLog.length} Events)</div>
+      <div class="audit-feed">
         ${auditLog.map(item => `
-          <div style="font-size:0.75rem; background:rgba(255,255,255,0.03); border:1px solid var(--border-subtle); padding:0.45rem 0.65rem; border-radius:6px; display:flex; flex-direction:column; gap:0.15rem;">
-            <div style="display:flex; justify-content:space-between; color:var(--text-muted); font-size:0.7rem;">
-              <span>${item.actor}</span>
+          <div class="audit-item">
+            <div class="audit-item-meta">
+              <strong>${item.actor}</strong>
               <span>${item.timestamp}</span>
             </div>
-            <div style="color:var(--text-secondary);">${item.action}</div>
+            <div class="audit-item-text">${item.action}</div>
           </div>
         `).join('')}
       </div>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-subtle); flex-wrap:wrap; gap:0.5rem;">
+    <div class="modal-footer-actions" style="justify-content:space-between;">
       <button class="btn btn-ghost" id="resetDemoDataBtn" title="Reset all tasks and state to initial Miro board seed">
         ↺ Reset to Miro Defaults
       </button>
-      <button class="btn btn-secondary" id="saveProfileBtn">
+      <button class="btn btn-primary" id="saveProfileBtn">
         Save & Apply Profile
       </button>
     </div>
@@ -1762,8 +2244,12 @@ function createNewTask({ blockId, title, epic, status, assignees, dependsOn, che
   const block = blockMap[blockId] || BLOCKS[0];
   const blockNum = block.id.replace('block-', '');
   const existingInBlock = TASKS.filter(t => t.blockId === block.id);
-  const nextNum = existingInBlock.length + 1;
-  const taskId = `B${blockNum}-${String(nextNum).padStart(2, '0')}`;
+  let nextNum = existingInBlock.length + 1;
+  let taskId = `B${blockNum}-${String(nextNum).padStart(2, '0')}`;
+  while (taskMap[taskId]) {
+    nextNum++;
+    taskId = `B${blockNum}-${String(nextNum).padStart(2, '0')}`;
+  }
 
   const newTask = {
     id: taskId,
@@ -1823,9 +2309,42 @@ function populateBlockFilter() {
   }
 }
 
+function populateQuickAddBar() {
+  if (typeof document === 'undefined') return;
+  const blockSelect = document.getElementById('quickAddBlock');
+  const assigneeSelect = document.getElementById('quickAddAssignee');
+  const epicDatalist = document.getElementById('quickEpicList');
+
+  if (blockSelect && blockSelect.options.length === 0) {
+    blockSelect.innerHTML = BLOCKS.map(b =>
+      `<option value="${b.id}" ${b.id === 'block-1' ? 'selected' : ''}>${b.code} · ${b.name}</option>`
+    ).join('');
+  }
+
+  const updateEpicSuggestions = () => {
+    if (!epicDatalist || !blockSelect) return;
+    const b = blockMap[blockSelect.value] || BLOCKS[0];
+    epicDatalist.innerHTML = b.deliverables.map(d => `<option value="${d}"></option>`).join('');
+  };
+  updateEpicSuggestions();
+  if (blockSelect && !blockSelect.dataset.bound) {
+    blockSelect.dataset.bound = 'true';
+    blockSelect.addEventListener('change', updateEpicSuggestions);
+  }
+
+  if (assigneeSelect) {
+    const user = getActiveUser();
+    assigneeSelect.innerHTML = `
+      <option value="">Unassigned</option>
+      ${TEAM_MEMBERS.map(m => `<option value="${m.id}" ${m.id === user.id ? 'selected' : ''}>Assign: ${m.avatar}${m.name}</option>`).join('')}
+    `;
+  }
+}
+
 function renderAll() {
   if (typeof document === 'undefined') return;
   const filtered = filterTasks();
+  syncPresetHighlight();
   renderRoster();
   renderMetrics(filtered);
   renderHierarchyView(filtered);
@@ -1838,6 +2357,7 @@ export function init() {
   loadStoredState();
   renderAuthPill();
   populateBlockFilter();
+  populateQuickAddBar();
   renderAll();
 
   // Cloud Firestore Sync Initialization
@@ -1852,6 +2372,10 @@ export function init() {
           if (Array.isArray(rt.assignees) && JSON.stringify(local.assignees) !== JSON.stringify(rt.assignees)) { local.assignees = rt.assignees; changed = true; }
           if (Array.isArray(rt.completedChecks) && JSON.stringify(local.completedChecks) !== JSON.stringify(rt.completedChecks)) { local.completedChecks = rt.completedChecks; changed = true; }
           if (rt.note && local.note !== rt.note) { local.note = rt.note; changed = true; }
+        } else if (rt.id && rt.title) {
+          TASKS.push(rt);
+          taskMap[rt.id] = rt;
+          changed = true;
         }
       });
       if (changed) {
@@ -1862,6 +2386,80 @@ export function init() {
   } catch (err) {
     console.warn('Cloud Firestore sync initial setup notice:', err);
   }
+
+  // Theme Toggle Button
+  const themeBtn = document.getElementById('themeToggleBtn');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+  }
+
+  // Quick-Add Form Submission
+  const quickAddForm = document.getElementById('quickAddForm');
+  if (quickAddForm) {
+    quickAddForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const user = getActiveUser();
+      if (user.id === 'guest') {
+        alert('Guests have read-only access. Switch to a team member in the top bar to add tasks.');
+        return;
+      }
+      const blockEl = document.getElementById('quickAddBlock');
+      const titleEl = document.getElementById('quickAddTitle');
+      const epicEl = document.getElementById('quickAddEpic');
+      const assigneeEl = document.getElementById('quickAddAssignee');
+
+      const title = titleEl?.value?.trim();
+      if (!title) return;
+
+      const blockId = blockEl?.value || 'block-1';
+      const epic = epicEl?.value?.trim() || 'General Deliverable';
+      const assignee = assigneeEl?.value;
+
+      createNewTask({
+        blockId,
+        title,
+        epic,
+        status: 'todo',
+        assignees: assignee ? [assignee] : [],
+        dependsOn: [],
+        checklist: [],
+        tags: []
+      });
+
+      if (titleEl) titleEl.value = '';
+      if (epicEl) epicEl.value = '';
+    });
+  }
+
+  // Quick Filter Presets
+  document.querySelectorAll('#quickFilterPresets .preset-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.getAttribute('data-preset');
+      const user = getActiveUser();
+      const statusFilter = document.getElementById('statusFilter');
+
+      activeFilters.unassignedOnly = false;
+      activeFilters.assignee = null;
+      activeFilters.status = 'all';
+
+      if (preset === 'mine') {
+        activeFilters.assignee = user.id !== 'guest' ? user.id : null;
+      } else if (preset === 'pickup') {
+        activeFilters.unassignedOnly = true;
+        activeFilters.status = 'unblocked';
+      } else if (preset === 'unblocked') {
+        activeFilters.status = 'unblocked';
+      } else if (preset === 'blocked') {
+        activeFilters.status = 'blocked';
+      }
+
+      if (statusFilter) statusFilter.value = activeFilters.status;
+      renderAll();
+    });
+  });
 
   // Topbar Auth Pill -> Open Profile Modal
   const authPill = document.getElementById('authStatusPill');
@@ -1878,7 +2476,7 @@ export function init() {
   // New Task Button
   const newTaskBtn = document.getElementById('newTaskBtn');
   if (newTaskBtn) {
-    newTaskBtn.addEventListener('click', openNewTaskModal);
+    newTaskBtn.addEventListener('click', () => openNewTaskModal());
   }
 
   // Modals close buttons
@@ -1903,20 +2501,34 @@ export function init() {
     });
   }
 
-  // Escape key closes modals
+  // Global Keyboard Shortcuts
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeTaskModal();
       closeProfileModal();
+      return;
+    }
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select';
+    if (!isTyping && e.key === '/') {
+      e.preventDefault();
+      document.getElementById('searchInput')?.focus();
+    } else if (!isTyping && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      openNewTaskModal();
     }
   });
 
   // View Switching
   document.querySelectorAll('.view-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.view-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view-tab').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+      });
       document.querySelectorAll('.view-panel').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
       const view = btn.getAttribute('data-view');
       activeFilters.view = view || 'hierarchy';
       const targetPanel = document.getElementById(`view-${view}`);
@@ -1944,6 +2556,7 @@ export function init() {
   const statusFilter = document.getElementById('statusFilter');
   if (statusFilter) {
     statusFilter.addEventListener('change', e => {
+      activeFilters.unassignedOnly = false;
       activeFilters.status = e.target.value;
       renderAll();
     });
@@ -1956,6 +2569,7 @@ export function init() {
       activeFilters.blockId = 'all';
       activeFilters.status = 'all';
       activeFilters.assignee = null;
+      activeFilters.unassignedOnly = false;
       if (searchInput) searchInput.value = '';
       if (blockFilter) blockFilter.value = 'all';
       if (statusFilter) statusFilter.value = 'all';
@@ -2024,19 +2638,3 @@ export {
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 };
-
-/* ============================================================================
- * OPTIONAL FIREBASE GITHUB OAUTH + FIRESTORE ANTI-GRIEFING CONFIG FOR GITHUB PAGES
- * ============================================================================
- * When deploying to GitHub Pages, uncomment and add your Firebase project keys:
- *
- * import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
- * import { getAuth, GithubAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
- * import { getFirestore, collection, getDocs, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
- *
- * const firebaseConfig = {
- *   apiKey: "YOUR_API_KEY",
- *   authDomain: "usst-rocketry-tasks.firebaseapp.com",
- *   projectId: "usst-rocketry-tasks"
- * };
- * ============================================================================ */

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 
 <head>
   <meta charset="UTF-8" />
@@ -19,7 +19,7 @@
   <header class="topbar">
     <div class="brand">
       <div class="brand-logo" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
           <path
@@ -31,113 +31,144 @@
       <div>
         <div class="brand-title-row">
           <h1>USST Rocketry</h1>
-          <span class="mission-badge">MISSION CONTROL</span>
+          <span class="mission-badge">FLIGHT SW HUB</span>
         </div>
-        <p class="brand-subtitle">Zephyr RTOS · Flight Algorithms · Simulator · RF Comms · Ground Station · Peripherals
-        </p>
+        <p class="brand-subtitle">Zephyr RTOS · Apogee UKF · Simulator · RF Comms · Ground Station · Peripherals</p>
       </div>
     </div>
 
     <div class="topbar-actions">
       <!-- Cloud Firestore Sync Status -->
       <div class="auth-pill telemetry-pill" id="firestoreStatusPill"
-        title="Connected to Google Cloud Firestore (usst-rocketry-hub / nam5)">
+        title="Connected to Google Cloud Firestore (usst-rocketry-hub)">
         <span class="status-dot verified"></span>
-        <svg class="pill-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-        </svg>
         <div class="auth-meta">
-          <span class="auth-name">Firestore Live</span>
+          <span class="auth-name">Cloud Sync</span>
           <span class="auth-role" id="firestoreStatusText">Synced · usst-rocketry-hub</span>
         </div>
       </div>
 
       <!-- Anti-Griefing Account / Role Status -->
       <div class="auth-pill" id="authStatusPill" role="button" tabindex="0"
-        title="Click to switch active developer or customize avatar/flair">
+        title="Click to switch active developer, view audit log, or customize avatar">
         <span class="status-dot verified"></span>
         <span id="activeUserAvatar" class="avatar-mini">🚀</span>
         <div class="auth-meta">
           <span id="activeUserName" class="auth-name">Joseph (Lead)</span>
-          <span id="activeUserRole" class="auth-role">Write Access · GitHub Verified</span>
+          <span id="activeUserRole" class="auth-role">Full Access · GitHub Verified</span>
         </div>
+        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </div>
 
-      <button class="btn btn-primary" id="newTaskBtn" title="Create a new task on the mission control board">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
+      <!-- Theme Toggle -->
+      <button class="btn btn-ghost btn-icon" id="themeToggleBtn" title="Toggle Light / Dark theme"
+        aria-label="Toggle color theme">
+        <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
         </svg>
-        New Task
+        <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
       </button>
 
-      <button class="btn btn-secondary" id="exportJsonBtn" title="Download tasks as JSON for GitHub repo">
+      <button class="btn btn-ghost" id="exportJsonBtn" title="Download tasks as JSON backup">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
-        Export JSON
+        Export
+      </button>
+
+      <button class="btn btn-primary" id="newTaskBtn" title="Create a new task (Shortcut: N)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        New Task
       </button>
     </div>
   </header>
 
   <!-- Team Roster Bar -->
-  <section class="roster-bar">
+  <section class="roster-bar" aria-label="Development Crew Filter">
     <div class="roster-label">
-      <span>DEVELOPMENT CREW</span>
-      <small>Filter by assignee</small>
+      <span>CREW ROSTER</span>
+      <small>Click to filter assignee</small>
     </div>
     <div class="roster-list" id="teamRosterList">
       <!-- Populated by app.js -->
     </div>
   </section>
 
-  <!-- Controls: View Switcher, Search, Filters -->
+  <!-- Primary Controls: View Switcher, Search, Filters -->
   <section class="controls-bar">
-    <div class="view-tabs" id="viewTabs" role="tablist">
-      <button class="view-tab active" data-view="hierarchy" role="tab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-        </svg>
-        Subsystems
-      </button>
-      <button class="view-tab" data-view="dependencies" role="tab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="6" cy="6" r="3" />
-          <circle cx="6" cy="18" r="3" />
-          <path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12" />
-        </svg>
-        Dependency Graph
-      </button>
-      <button class="view-tab" data-view="kanban" role="tab">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="5" height="18" rx="1" />
-          <rect x="10" y="3" width="5" height="12" rx="1" />
-          <rect x="17" y="3" width="5" height="15" rx="1" />
-        </svg>
-        Kanban
-      </button>
+    <div class="controls-left">
+      <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Workspace Views">
+        <button class="view-tab active" data-view="hierarchy" role="tab" aria-selected="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+          </svg>
+          Subsystems
+        </button>
+        <button class="view-tab" data-view="kanban" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="5" height="18" rx="1" />
+            <rect x="10" y="3" width="5" height="12" rx="1" />
+            <rect x="17" y="3" width="5" height="15" rx="1" />
+          </svg>
+          Kanban Board
+        </button>
+        <button class="view-tab" data-view="dependencies" role="tab" aria-selected="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12" />
+          </svg>
+          Dependency Graph
+        </button>
+      </div>
+
+      <!-- Quick Focus Presets -->
+      <div class="preset-pills" id="quickFilterPresets" role="group" aria-label="Quick task filters">
+        <button type="button" class="preset-pill active" data-preset="all">All Tasks</button>
+        <button type="button" class="preset-pill" data-preset="mine">Assigned to Me</button>
+        <button type="button" class="preset-pill" data-preset="pickup">Ready to Pick Up</button>
+        <button type="button" class="preset-pill" data-preset="unblocked">Unblocked</button>
+        <button type="button" class="preset-pill" data-preset="blocked">Blocked / HW</button>
+      </div>
     </div>
 
     <div class="filters-group">
       <div class="search-box">
-        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
         <input type="text" id="searchInput"
-          placeholder="Search tasks, repos (Maidstone, Houston), tags (UKF, LoRa, HAL)..." />
+          placeholder="Search tasks, repos, tags (Press / to focus)..." />
       </div>
 
       <select id="blockFilter" class="filter-select" aria-label="Filter by subsystem block">
@@ -158,14 +189,36 @@
     </div>
   </section>
 
+  <!-- Streamlined Inline Quick-Add Bar -->
+  <section class="quick-add-section" aria-label="Quick Add Task">
+    <form class="quick-add-bar" id="quickAddForm">
+      <div class="quick-add-label">
+        <span class="quick-add-badge">+ Quick Add</span>
+      </div>
+      <select id="quickAddBlock" class="form-select quick-select" aria-label="Select Subsystem Block">
+        <!-- Populated by app.js -->
+      </select>
+      <input type="text" id="quickAddTitle" class="form-input quick-title-input"
+        placeholder="Type a new task title and press Enter (e.g., Write SPI driver test for MS5611 barometer)..."
+        required />
+      <input type="text" id="quickAddEpic" class="form-input quick-epic-input" list="quickEpicList"
+        placeholder="Deliverable / Epic (optional)" />
+      <datalist id="quickEpicList"></datalist>
+      <select id="quickAddAssignee" class="form-select quick-select" aria-label="Initial Assignee">
+        <!-- Populated by app.js -->
+      </select>
+      <button type="submit" class="btn btn-primary quick-submit-btn">Add Task</button>
+    </form>
+  </section>
+
   <!-- Summary Metrics Strip -->
-  <section class="metrics-strip" id="metricsStrip">
+  <section class="metrics-strip" id="metricsStrip" aria-label="Project Summary Metrics">
     <!-- Populated by app.js -->
   </section>
 
   <!-- Main Workspace Container -->
   <main class="workspace">
-    <!-- VIEW 1: HIERARCHY & BLOCKS VIEW -->
+    <!-- VIEW 1: HIERARCHY & SUBSYSTEM BLOCKS VIEW -->
     <div id="view-hierarchy" class="view-panel active">
       <div id="hierarchyContainer" class="blocks-grid">
         <!-- Populated by app.js -->
@@ -175,7 +228,10 @@
     <!-- VIEW 2: DEPENDENCY FLOWCHART VIEW -->
     <div id="view-dependencies" class="view-panel">
       <div class="dependency-legend">
-        <div class="legend-title">Subsystem Critical Path & Dependency Chains</div>
+        <div>
+          <div class="legend-title">Subsystem Dependency Chains & Critical Path</div>
+          <p class="legend-subtitle">Click any task node to inspect predecessors, claim work, or update status.</p>
+        </div>
         <div class="legend-items">
           <span class="legend-item"><span class="dot dot-ready"></span> In Progress / Ready</span>
           <span class="legend-item"><span class="dot dot-testing"></span> Testing & Verification</span>
@@ -203,7 +259,7 @@
       <span class="footer-sep">·</span>
       <span>GitHub Pages Static Deployment</span>
       <span class="footer-sep">·</span>
-      <span>GitHub Org RBAC</span>
+      <span>Role-Gated Anti-Griefing Architecture</span>
     </div>
     <div class="footer-links">
       <a href="https://github.com/USSTRocketry/Maidstone" target="_blank" rel="noopener">Maidstone</a>
@@ -214,7 +270,7 @@
     </div>
   </footer>
 
-  <!-- Task Detail Modal / Drawer -->
+  <!-- Task Detail & Creation Modal -->
   <div class="modal-backdrop" id="taskDetailModal" style="display: none;" aria-hidden="true">
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTaskId">
       <div class="modal-header">
@@ -235,7 +291,7 @@
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalProfileTitle">
       <div class="modal-header">
         <div class="modal-title-row">
-          <h2 id="modalProfileTitle" class="modal-title">Crew Identity & RBAC Access</h2>
+          <h2 id="modalProfileTitle" class="modal-title">Crew Identity, Customization & Audit Log</h2>
         </div>
         <button class="modal-close-btn" id="profileModalCloseBtn" aria-label="Close dialog">✕</button>
       </div>
