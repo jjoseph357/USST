@@ -22,6 +22,11 @@ import {
   deleteTask,
   addAuditLog,
   getAuditLog,
+  assignNameToTask,
+  unassignNameFromTask,
+  updateTaskDetails,
+  addCrewMember,
+  updateCrewMember,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 } from '../../app.js';
@@ -466,6 +471,99 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       for (const color of FUN_COLOR_PALETTE) {
         expect(color).toMatch(/^#[0-9a-fA-F]{6}$/);
       }
+    });
+
+    it('allows assigning any custom name or team member anywhere, and unassigning them', () => {
+      const task = taskMap['B0-03'];
+      const initialAssignees = [...task.assignees];
+
+      // Assign by member ID
+      assignNameToTask('B0-03', 'sophie');
+      expect(task.assignees).toContain('sophie');
+
+      // Assign by member full name (case-insensitive resolution)
+      assignNameToTask('B0-03', 'Nick S');
+      expect(task.assignees).toContain('nick');
+
+      // Assign an arbitrary / custom name not in the roster
+      assignNameToTask('B0-03', 'Hardware Team');
+      expect(task.assignees).toContain('Hardware Team');
+
+      // Unassign custom name
+      unassignNameFromTask('B0-03', 'Hardware Team');
+      expect(task.assignees).not.toContain('Hardware Team');
+
+      // Restore
+      task.assignees = initialAssignees;
+    });
+
+    it('allows modifying and editing all task details', () => {
+      const task = taskMap['B0-02'];
+      const originalTitle = task.title;
+      const originalEpic = task.epic;
+
+      const updated = updateTaskDetails('B0-02', {
+        title: 'Updated Documentation Architecture Guide',
+        epic: 'Core Infrastructure & Tools',
+        tags: ['Docs', 'Architecture', 'Doxygen'],
+        checklist: ['Step A: Draft docs', 'Step B: Review with team']
+      });
+
+      expect(updated).not.toBeNull();
+      expect(task.title).toBe('Updated Documentation Architecture Guide');
+      expect(task.epic).toBe('Core Infrastructure & Tools');
+      expect(task.tags).toContain('Architecture');
+      expect(task.checklist?.length).toBe(2);
+
+      // Restore
+      task.title = originalTitle;
+      task.epic = originalEpic;
+    });
+
+    it('allows updating an existing crew member seat or adding a new member to the roster', () => {
+      // 1. Updating an existing crew member seat (takeover / customize)
+      const nick = memberMap['nick'];
+      const origNickName = nick.name;
+      const origNickHandle = nick.handle;
+
+      updateCrewMember('nick', {
+        name: 'Nicholas Smith',
+        handle: 'nicholas-s',
+        flair: 'Leading Zephyr RTOS bring-up'
+      });
+      expect(nick.name).toBe('Nicholas Smith');
+      expect(nick.handle).toBe('nicholas-s');
+      expect(nick.flair).toBe('Leading Zephyr RTOS bring-up');
+
+      // Restore Nick
+      nick.name = origNickName;
+      nick.handle = origNickHandle;
+
+      // 2. Adding a brand-new crew member
+      const initialRosterLen = TEAM_MEMBERS.length;
+      const newCrew = addCrewMember({
+        name: 'Alex Turner',
+        handle: 'alex-turner',
+        role: 'Avionics & Telemetry',
+        avatar: '⚡',
+        flair: 'Radio link optimization'
+      });
+
+      expect(newCrew).not.toBeNull();
+      expect(newCrew?.id).toBe('alex-turner');
+      expect(TEAM_MEMBERS.length).toBe(initialRosterLen + 1);
+      expect(memberMap['alex-turner']).toBeDefined();
+      expect(memberMap['alex-turner'].name).toBe('Alex Turner');
+
+      // Set as active user
+      setActiveUser('alex-turner');
+      expect(getActiveUser().id).toBe('alex-turner');
+
+      // Restore active user and clean up roster
+      setActiveUser('joseph');
+      const idx = TEAM_MEMBERS.findIndex(m => m.id === 'alex-turner');
+      if (idx >= 0) TEAM_MEMBERS.splice(idx, 1);
+      delete memberMap['alex-turner'];
     });
   });
 });

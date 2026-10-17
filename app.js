@@ -92,6 +92,16 @@ const FUN_COLOR_PALETTE = [
   '#f43f5e', '#84cc16', '#eab308', '#38bdf8'
 ];
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let auditLog = [
   {
     timestamp: '2026-10-10 14:20',
@@ -786,11 +796,24 @@ function loadStoredState() {
     const storedMembers = localStorage.getItem('usst_members_v2');
     if (storedMembers) {
       const parsedMembers = JSON.parse(storedMembers);
-      TEAM_MEMBERS.forEach(m => {
-        if (parsedMembers[m.id]) {
-          Object.assign(m, parsedMembers[m.id]);
-        }
-      });
+      if (Array.isArray(parsedMembers)) {
+        parsedMembers.forEach(pm => {
+          if (!pm || !pm.id) return;
+          const existing = memberMap[pm.id];
+          if (existing) {
+            Object.assign(existing, pm);
+          } else {
+            TEAM_MEMBERS.push(pm);
+            memberMap[pm.id] = pm;
+          }
+        });
+      } else if (parsedMembers && typeof parsedMembers === 'object') {
+        TEAM_MEMBERS.forEach(m => {
+          if (parsedMembers[m.id]) {
+            Object.assign(m, parsedMembers[m.id]);
+          }
+        });
+      }
     }
 
     const storedTheme = localStorage.getItem('usst_theme_v2');
@@ -807,10 +830,7 @@ function saveStoredState() {
   try {
     localStorage.setItem('usst_tasks_v2', JSON.stringify(TASKS));
     localStorage.setItem('usst_active_user_v2', currentUserId);
-    const memberCustom = Object.fromEntries(
-      TEAM_MEMBERS.map(m => [m.id, { avatar: m.avatar, flair: m.flair, color: m.color }])
-    );
-    localStorage.setItem('usst_members_v2', JSON.stringify(memberCustom));
+    localStorage.setItem('usst_members_v2', JSON.stringify(TEAM_MEMBERS));
   } catch (e) {
     console.warn('Failed to save state to localStorage:', e);
   }
@@ -884,7 +904,7 @@ function filterTasks() {
     if (activeFilters.search.trim() !== '') {
       const q = activeFilters.search.toLowerCase();
       const block = blockMap[task.blockId];
-      const assigneeNames = task.assignees.map(a => memberMap[a]?.name || '').join(' ');
+      const assigneeNames = task.assignees.map(a => memberMap[a]?.name || a).join(' ');
       const searchable = [
         task.id,
         task.title,
@@ -1496,7 +1516,7 @@ function renderKanbanView(filtered) {
 // Modal Implementations
 let currentModalTaskId = null;
 
-function openTaskModal(taskId) {
+function openTaskModal(taskId, isEditMode = false) {
   const modal = document.getElementById('taskDetailModal');
   const task = taskMap[taskId];
   if (!modal || !task) return;
@@ -1514,6 +1534,112 @@ function openTaskModal(taskId) {
   const taskBlockEl = document.getElementById('modalTaskBlock');
   const taskBodyEl = document.getElementById('modalTaskBody');
 
+  if (isEditMode) {
+    if (taskIdEl) taskIdEl.textContent = task.id;
+    if (taskBlockEl) {
+      taskBlockEl.textContent = '✏️ Edit Task Details';
+      taskBlockEl.style.borderLeft = '3px solid #2563eb';
+    }
+
+    if (taskBodyEl) {
+      taskBodyEl.innerHTML = `
+        <form id="modalEditForm" class="modal-edit-grid">
+          <div class="modal-section">
+            <label class="modal-section-title" for="editTaskTitle">Task Title *</label>
+            <input type="text" class="form-input" id="editTaskTitle" value="${escapeHtml(task.title)}" required />
+          </div>
+
+          <div class="modal-two-col">
+            <div class="modal-section">
+              <label class="modal-section-title" for="editTaskBlock">Subsystem Block</label>
+              <select class="form-select" id="editTaskBlock">
+                ${BLOCKS.map(b => `<option value="${b.id}" ${b.id === task.blockId ? 'selected' : ''}>${b.code}: ${b.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="modal-section">
+              <label class="modal-section-title" for="editTaskStatus">Status</label>
+              <select class="form-select" id="editTaskStatus">
+                <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Backlog / To Do</option>
+                <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>Testing & Verification</option>
+                <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Waiting on Hardware</option>
+                <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed & Verified</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <label class="modal-section-title" for="editTaskEpic">Deliverable / Epic</label>
+            <input type="text" class="form-input" id="editTaskEpic" list="editEpicSuggestions" value="${escapeHtml(task.epic)}" />
+            <datalist id="editEpicSuggestions">
+              ${(block?.deliverables || []).map(d => `<option value="${escapeHtml(d)}"></option>`).join('')}
+            </datalist>
+          </div>
+
+          <div class="modal-section">
+            <label class="modal-section-title" for="editTaskDeps">Predecessor Dependencies (Comma-separated Task IDs)</label>
+            <input type="text" class="form-input" id="editTaskDeps" value="${(task.dependsOn || []).join(', ')}" placeholder="e.g. B1-01, B1-02" />
+          </div>
+
+          <div class="modal-section">
+            <label class="modal-section-title" for="editTaskTags">Tags (Comma-separated)</label>
+            <input type="text" class="form-input" id="editTaskTags" value="${(task.tags || []).join(', ')}" placeholder="e.g. Maidstone, C++, UKF" />
+          </div>
+
+          <div class="modal-section">
+            <label class="modal-section-title" for="editTaskChecklist">Checklist Steps (One step per line)</label>
+            <textarea class="form-textarea" id="editTaskChecklist" rows="4" placeholder="Enter sub-steps, one per line...">${(task.checklist || []).join('\n')}</textarea>
+          </div>
+
+          <div class="modal-footer-actions" style="justify-content: flex-end; gap: 0.6rem;">
+            <button type="button" class="btn btn-ghost" id="modalCancelEditBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="modalSaveEditBtn">💾 Save Changes</button>
+          </div>
+        </form>
+      `;
+
+      const editForm = document.getElementById('modalEditForm');
+      if (editForm) {
+        editForm.addEventListener('submit', e => {
+          e.preventDefault();
+          const newTitle = document.getElementById('editTaskTitle')?.value;
+          const newBlockId = document.getElementById('editTaskBlock')?.value;
+          const newStatus = document.getElementById('editTaskStatus')?.value;
+          const newEpic = document.getElementById('editTaskEpic')?.value;
+          const rawDeps = document.getElementById('editTaskDeps')?.value || '';
+          const newDeps = rawDeps.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+          const rawTags = document.getElementById('editTaskTags')?.value || '';
+          const newTags = rawTags.split(',').map(s => s.trim()).filter(Boolean);
+          const rawChecklist = document.getElementById('editTaskChecklist')?.value || '';
+          const newChecklist = rawChecklist.split('\n').map(s => s.trim()).filter(Boolean);
+
+          updateTaskDetails(task.id, {
+            title: newTitle,
+            blockId: newBlockId,
+            status: newStatus,
+            epic: newEpic,
+            dependsOn: newDeps,
+            tags: newTags,
+            checklist: newChecklist
+          });
+          openTaskModal(task.id, false);
+        });
+      }
+
+      const cancelBtn = document.getElementById('modalCancelEditBtn');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          openTaskModal(task.id, false);
+        });
+      }
+    }
+
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    return;
+  }
+
+  // View Mode
   if (taskIdEl) taskIdEl.textContent = task.id;
   if (taskBlockEl) {
     taskBlockEl.textContent = `${block?.code || ''} · ${block?.name || ''}`;
@@ -1531,7 +1657,11 @@ function openTaskModal(taskId) {
   const assigneesListHTML = task.assignees.length > 0
     ? task.assignees.map(id => {
         const m = memberMap[id];
-        return `<span class="assignee-chip">${m ? m.avatar : '👤'} ${m ? m.name : id}</span>`;
+        return `<span class="assignee-chip" style="--member-color: ${m ? m.color : '#64748b'}">
+          <span>${m ? m.avatar : '👤'}</span>
+          <span>${m ? m.name : id}</span>
+          ${!isGuest ? `<button type="button" class="chip-remove-btn" data-unassign-chip="${id}" title="Remove assignee">✕</button>` : ''}
+        </span>`;
       }).join(' ')
     : '<span class="muted-text">Currently Unassigned</span>';
 
@@ -1591,9 +1721,16 @@ function openTaskModal(taskId) {
 
   if (taskBodyEl) {
     taskBodyEl.innerHTML = `
-      <div>
-        <h3 class="modal-task-title">${task.title}</h3>
-        <div class="modal-epic-subtitle">Deliverable / Epic: <strong>${task.epic}</strong></div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem;">
+        <div>
+          <h3 class="modal-task-title">${task.title}</h3>
+          <div class="modal-epic-subtitle">Deliverable / Epic: <strong>${task.epic}</strong></div>
+        </div>
+        ${!isGuest ? `
+          <button type="button" class="btn btn-secondary btn-sm" id="modalEditTaskBtn" title="Edit task title, block, epic, dependencies...">
+            ✏️ Edit Task
+          </button>
+        ` : ''}
       </div>
 
       ${blockerBanner}
@@ -1623,9 +1760,18 @@ function openTaskModal(taskId) {
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Assigned Crew Members (Click to Assign / Unassign)</div>
-        <div style="margin-bottom: 0.35rem;">${assigneesListHTML}</div>
-        ${crewToggleGridHTML}
+        <div class="modal-section-title">Assigned Crew Members</div>
+        <div class="assignees-row" style="margin-bottom: 0.35rem;">${assigneesListHTML}</div>
+        ${!isGuest ? `
+          <div class="custom-assignee-row">
+            <input type="text" class="form-input" id="customAssigneeInput" placeholder="Assign any name or handle (e.g. Alex, Hardware Team)..." />
+            <button type="button" class="btn btn-secondary btn-sm" id="customAssigneeBtn">+ Assign</button>
+          </div>
+          <div style="margin-top: 0.4rem;">
+            <div class="muted-text" style="font-size: 0.7rem; margin-bottom: 0.25rem;">Quick toggle registered crew:</div>
+            ${crewToggleGridHTML}
+          </div>
+        ` : ''}
       </div>
 
       ${checklistInteractiveHTML}
@@ -1688,12 +1834,20 @@ function openTaskModal(taskId) {
       ` : ''}
     `;
 
+    // Edit button toggle
+    const editBtn = document.getElementById('modalEditTaskBtn');
+    if (editBtn) {
+      editBtn.addEventListener('click', () => {
+        openTaskModal(task.id, true);
+      });
+    }
+
     // Status change
     const statusSelect = document.getElementById('modalStatusSelect');
     if (statusSelect) {
       statusSelect.addEventListener('change', e => {
         updateTaskStatus(task.id, e.target.value);
-        openTaskModal(task.id);
+        openTaskModal(task.id, false);
       });
     }
 
@@ -1702,7 +1856,39 @@ function openTaskModal(taskId) {
     if (claimBtn) {
       claimBtn.addEventListener('click', () => {
         claimTask(task.id, user.id);
-        openTaskModal(task.id);
+        openTaskModal(task.id, false);
+      });
+    }
+
+    // Unassign chip removal
+    taskBodyEl.querySelectorAll('[data-unassign-chip]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-unassign-chip');
+        if (targetId) {
+          unassignNameFromTask(task.id, targetId);
+          openTaskModal(task.id, false);
+        }
+      });
+    });
+
+    // Custom assignee input
+    const customAssigneeInput = document.getElementById('customAssigneeInput');
+    const customAssigneeBtn = document.getElementById('customAssigneeBtn');
+    if (customAssigneeInput && customAssigneeBtn) {
+      const handleAssign = () => {
+        const val = customAssigneeInput.value.trim();
+        if (val) {
+          assignNameToTask(task.id, val);
+          openTaskModal(task.id, false);
+        }
+      };
+      customAssigneeBtn.addEventListener('click', handleAssign);
+      customAssigneeInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAssign();
+        }
       });
     }
 
@@ -1712,7 +1898,7 @@ function openTaskModal(taskId) {
         const memberId = btn.getAttribute('data-toggle-assignee');
         if (memberId) {
           claimTask(task.id, memberId);
-          openTaskModal(task.id);
+          openTaskModal(task.id, false);
         }
       });
     });
@@ -1722,7 +1908,7 @@ function openTaskModal(taskId) {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-jump-task');
         if (targetId && taskMap[targetId]) {
-          openTaskModal(targetId);
+          openTaskModal(targetId, false);
         }
       });
     });
@@ -1742,7 +1928,7 @@ function openTaskModal(taskId) {
         saveStoredState();
         syncTaskToFirestore(task);
         renderAll();
-        openTaskModal(task.id);
+        openTaskModal(task.id, false);
       });
     });
 
@@ -1759,7 +1945,7 @@ function openTaskModal(taskId) {
         saveStoredState();
         syncTaskToFirestore(task);
         renderAll();
-        openTaskModal(task.id);
+        openTaskModal(task.id, false);
       };
       addStepBtn.addEventListener('click', handleAddStep);
       newStepInput.addEventListener('keydown', e => {
@@ -1786,7 +1972,7 @@ function openTaskModal(taskId) {
       input.addEventListener('change', () => {
         const idx = parseInt(input.getAttribute('data-check-index'), 10);
         toggleChecklistItem(task.id, idx);
-        openTaskModal(task.id);
+        openTaskModal(task.id, false);
       });
     });
 
@@ -1798,7 +1984,7 @@ function openTaskModal(taskId) {
         const text = noteInput.value.trim();
         if (text) {
           addTaskNote(task.id, `${user.name}: "${text}"`);
-          openTaskModal(task.id);
+          openTaskModal(task.id, false);
         }
       };
       addNoteBtn.addEventListener('click', handleAddNote);
@@ -2064,12 +2250,55 @@ function openProfileModal() {
           </div>
           <span class="status-badge status-todo">Read Only</span>
         </div>
+        <details class="new-member-details" style="margin-top: 0.65rem;">
+          <summary class="btn btn-secondary btn-full" style="cursor: pointer; text-align: center; font-size: 0.78rem;">
+            ＋ Add New Team Member to Roster
+          </summary>
+          <div class="new-member-card">
+            <div style="font-weight: 700; font-size: 0.82rem; color: var(--text-main);">Create Your Crew Profile Seat</div>
+            <div>
+              <label class="modal-section-title">Your Full Name</label>
+              <input type="text" class="form-input" id="newMemberNameInput" placeholder="e.g. Alex Turner" />
+            </div>
+            <div class="modal-two-col">
+              <div>
+                <label class="modal-section-title">GitHub Handle</label>
+                <input type="text" class="form-input" id="newMemberHandleInput" placeholder="e.g. alex-turner" />
+              </div>
+              <div>
+                <label class="modal-section-title">Subsystem / Role</label>
+                <input type="text" class="form-input" id="newMemberRoleInput" placeholder="e.g. Avionics & Flight SW" />
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary btn-full" id="submitNewMemberBtn">
+              Create Crew Seat & Switch To It
+            </button>
+          </div>
+        </details>
       </div>
     </div>
 
     ${user.id !== 'guest' ? `
       <div class="modal-section">
-        <div class="modal-section-title">Customize Fun Avatar Icon (${user.name})</div>
+        <div class="modal-section-title">Edit Active Profile Seat (${user.name})</div>
+        <div class="modal-two-col">
+          <div>
+            <label class="modal-section-title" style="font-size:0.62rem;">Display Name</label>
+            <input type="text" class="form-input" id="profileNameInput" value="${escapeHtml(user.name)}" />
+          </div>
+          <div>
+            <label class="modal-section-title" style="font-size:0.62rem;">GitHub Handle</label>
+            <input type="text" class="form-input" id="profileHandleInput" value="${escapeHtml(user.handle)}" />
+          </div>
+        </div>
+        <div style="margin-top:0.4rem;">
+          <label class="modal-section-title" style="font-size:0.62rem;">Subsystem Role</label>
+          <input type="text" class="form-input" id="profileRoleInput" value="${escapeHtml(user.role)}" />
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-title">Customize Fun Avatar Icon</div>
         <div class="avatar-picker-grid">
           ${FUN_AVATAR_PACK.map(emoji => `
             <button type="button" class="avatar-opt-btn ${user.avatar === emoji ? 'active' : ''}" data-avatar="${emoji}">${emoji}</button>
@@ -2088,7 +2317,7 @@ function openProfileModal() {
 
       <div class="modal-section">
         <div class="modal-section-title">Status Flair</div>
-        <input type="text" class="form-input" id="profileFlairInput" value="${user.flair}" placeholder="e.g. Fighting the Device Tree..." />
+        <input type="text" class="form-input" id="profileFlairInput" value="${escapeHtml(user.flair)}" placeholder="e.g. Fighting the Device Tree..." />
       </div>
     ` : ''}
 
@@ -2145,12 +2374,42 @@ function openProfileModal() {
     });
   });
 
+  const submitNewMemberBtn = document.getElementById('submitNewMemberBtn');
+  if (submitNewMemberBtn) {
+    submitNewMemberBtn.addEventListener('click', () => {
+      const nameVal = document.getElementById('newMemberNameInput')?.value?.trim();
+      const handleVal = document.getElementById('newMemberHandleInput')?.value?.trim();
+      const roleVal = document.getElementById('newMemberRoleInput')?.value?.trim();
+      if (!nameVal) {
+        alert('Please enter a full name for the crew seat.');
+        return;
+      }
+      const newMember = addCrewMember({
+        name: nameVal,
+        handle: handleVal,
+        role: roleVal
+      });
+      if (newMember) {
+        setActiveUser(newMember.id);
+        openProfileModal();
+      }
+    });
+  }
+
   const saveBtn = document.getElementById('saveProfileBtn');
   if (saveBtn) {
     saveBtn.addEventListener('click', () => {
-      const flairInput = document.getElementById('profileFlairInput');
-      if (flairInput && user.id !== 'guest') {
-        user.flair = flairInput.value.trim() || user.flair;
+      if (user.id !== 'guest') {
+        const nameInput = document.getElementById('profileNameInput');
+        const handleInput = document.getElementById('profileHandleInput');
+        const roleInput = document.getElementById('profileRoleInput');
+        const flairInput = document.getElementById('profileFlairInput');
+        updateCrewMember(user.id, {
+          name: nameInput ? nameInput.value : user.name,
+          handle: handleInput ? handleInput.value : user.handle,
+          role: roleInput ? roleInput.value : user.role,
+          flair: flairInput ? flairInput.value : user.flair
+        });
       }
       saveStoredState();
       renderAuthPill();
@@ -2195,20 +2454,141 @@ function updateTaskStatus(taskId, newStatus) {
   renderAll();
 }
 
+function assignNameToTask(taskId, nameOrId) {
+  const task = taskMap[taskId];
+  if (!task) return null;
+  const raw = String(nameOrId || '').trim();
+  if (!raw) return task;
+
+  const matched = TEAM_MEMBERS.find(m =>
+    m.id.toLowerCase() === raw.toLowerCase() ||
+    m.name.toLowerCase() === raw.toLowerCase() ||
+    m.handle.toLowerCase() === raw.toLowerCase()
+  );
+  const assigneeValue = matched ? matched.id : raw;
+
+  if (!Array.isArray(task.assignees)) task.assignees = [];
+  if (!task.assignees.includes(assigneeValue)) {
+    task.assignees.push(assigneeValue);
+    const label = matched ? `${matched.name} (${matched.avatar})` : assigneeValue;
+    addAuditLog(`Assigned ${label} to task ${taskId}`);
+    saveStoredState();
+    syncTaskToFirestore(task);
+    renderAll();
+  }
+  return task;
+}
+
+function unassignNameFromTask(taskId, nameOrId) {
+  const task = taskMap[taskId];
+  if (!task || !Array.isArray(task.assignees)) return null;
+  const raw = String(nameOrId || '').trim();
+  if (!raw) return task;
+
+  const initialLen = task.assignees.length;
+  task.assignees = task.assignees.filter(a => a !== raw && a.toLowerCase() !== raw.toLowerCase());
+  if (task.assignees.length !== initialLen) {
+    const label = memberMap[raw] ? `${memberMap[raw].name} (${memberMap[raw].avatar})` : raw;
+    addAuditLog(`Unassigned ${label} from task ${taskId}`);
+    saveStoredState();
+    syncTaskToFirestore(task);
+    renderAll();
+  }
+  return task;
+}
+
 function claimTask(taskId, memberId) {
   const task = taskMap[taskId];
   if (!task) return;
   const isAssigned = task.assignees.includes(memberId);
   if (isAssigned) {
-    task.assignees = task.assignees.filter(id => id !== memberId);
-    addAuditLog(`${memberMap[memberId]?.name || memberId} unassigned from ${taskId}`);
+    unassignNameFromTask(taskId, memberId);
   } else {
-    task.assignees.push(memberId);
-    addAuditLog(`${memberMap[memberId]?.name || memberId} claimed task ${taskId}`);
+    assignNameToTask(taskId, memberId);
   }
+}
+
+function updateTaskDetails(taskId, updates = {}) {
+  const task = taskMap[taskId];
+  if (!task) return null;
+
+  if (updates.title !== undefined) task.title = String(updates.title).trim();
+  if (updates.epic !== undefined) task.epic = String(updates.epic).trim();
+  if (updates.blockId && blockMap[updates.blockId]) task.blockId = updates.blockId;
+  if (updates.status !== undefined) task.status = updates.status;
+  if (Array.isArray(updates.dependsOn)) {
+    task.dependsOn = updates.dependsOn.map(d => String(d).trim().toUpperCase()).filter(Boolean);
+  }
+  if (Array.isArray(updates.checklist)) {
+    task.checklist = updates.checklist.map(c => String(c).trim()).filter(Boolean);
+  }
+  if (Array.isArray(updates.tags)) {
+    task.tags = updates.tags.map(t => String(t).trim()).filter(Boolean);
+  }
+  if (updates.note !== undefined) {
+    task.note = String(updates.note).trim();
+  }
+
+  addAuditLog(`Updated details for task ${taskId}: "${task.title}"`);
   saveStoredState();
   syncTaskToFirestore(task);
   renderAll();
+  return task;
+}
+
+function addCrewMember({ name, handle, role, avatar, color, flair } = {}) {
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+
+  let baseId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  if (!baseId) baseId = 'crew';
+  let id = baseId;
+  let counter = 1;
+  while (memberMap[id]) {
+    counter++;
+    id = `${baseId}-${counter}`;
+  }
+
+  const newMember = {
+    id,
+    name: cleanName,
+    handle: (handle ? String(handle).replace(/^@/, '').trim() : id),
+    role: role ? String(role).trim() : 'Developer',
+    avatar: avatar || FUN_AVATAR_PACK[Math.floor(Math.random() * FUN_AVATAR_PACK.length)],
+    color: color || FUN_COLOR_PALETTE[TEAM_MEMBERS.length % FUN_COLOR_PALETTE.length],
+    flair: flair ? String(flair).trim() : 'USST Rocketry Crew'
+  };
+
+  TEAM_MEMBERS.push(newMember);
+  memberMap[newMember.id] = newMember;
+  addAuditLog(`Added ${newMember.name} (@${newMember.handle}) to the crew roster`);
+  saveStoredState();
+  if (typeof document !== 'undefined') {
+    populateQuickAddBar();
+    renderAll();
+  }
+  return newMember;
+}
+
+function updateCrewMember(id, updates = {}) {
+  const member = memberMap[id];
+  if (!member || id === 'guest') return null;
+
+  if (updates.name) member.name = String(updates.name).trim();
+  if (updates.handle) member.handle = String(updates.handle).replace(/^@/, '').trim();
+  if (updates.role) member.role = String(updates.role).trim();
+  if (updates.avatar) member.avatar = updates.avatar;
+  if (updates.color) member.color = updates.color;
+  if (updates.flair) member.flair = String(updates.flair).trim();
+
+  addAuditLog(`Updated profile for ${member.name} (@${member.handle})`);
+  saveStoredState();
+  if (typeof document !== 'undefined') {
+    renderAuthPill();
+    populateQuickAddBar();
+    renderAll();
+  }
+  return member;
 }
 
 function toggleChecklistItem(taskId, index) {
@@ -2635,6 +3015,11 @@ export {
   openNewTaskModal,
   getAuditLog,
   addAuditLog,
+  assignNameToTask,
+  unassignNameFromTask,
+  updateTaskDetails,
+  addCrewMember,
+  updateCrewMember,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 };

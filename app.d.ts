@@ -105,3 +105,23 @@ export declare function openNewTaskModal(): void;
 export declare function getAuditLog(): AuditLogEntry[];
 export declare function addAuditLog(actionText: string): void;
 
+export declare function assignNameToTask(taskId: string, nameOrId: string): Task | null;
+export declare function unassignNameFromTask(taskId: string, nameOrId: string): Task | null;
+export declare function updateTaskDetails(
+  taskId: string,
+  updates: Partial<Task>
+): Task | null;
+export declare function addCrewMember(member: {
+  name: string;
+  handle?: string;
+  role?: string;
+  avatar?: string;
+  color?: string;
+  flair?: string;
+}): TeamMember | null;
+export declare function updateCrewMember(
+  id: string,
+  updates: Partial<TeamMember>
+): TeamMember | null;
+
+
