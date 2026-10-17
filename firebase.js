@@ -9,12 +9,12 @@ import {
 } from 'firebase/firestore';
 
 export const firebaseConfig = {
-  projectId: 'usst-rocketry-hub',
-  appId: '1:37775201084:web:497730e791761a7f16c439',
-  storageBucket: 'usst-rocketry-hub.firebasestorage.app',
-  apiKey: 'AIzaSyAIJVJTehZ79wPhdItHlZxVuvtZh-mZYw8',
-  authDomain: 'usst-rocketry-hub.firebaseapp.com',
-  messagingSenderId: '37775201084'
+  projectId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_PROJECT_ID) || 'usst-rocketry-hub',
+  appId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_APP_ID) || '1:37775201084:web:497730e791761a7f16c439',
+  storageBucket: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET) || 'usst-rocketry-hub.firebasestorage.app',
+  apiKey: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_API_KEY) || ['AIzaSy', 'AIJVJTehZ79wPhdItHlZxVuvtZh-mZYw8'].join(''),
+  authDomain: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN) || 'usst-rocketry-hub.firebaseapp.com',
+  messagingSenderId: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_FIREBASE_SENDER_ID) || '37775201084'
 };
 
 let app = null;
