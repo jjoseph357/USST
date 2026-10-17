@@ -124,4 +124,23 @@ export declare function updateCrewMember(
   updates: Partial<TeamMember>
 ): TeamMember | null;
 
+export declare function addBlock(data: {
+  name: string;
+  code?: string;
+  subtitle?: string;
+  color?: string;
+  objective?: string;
+  deliverables?: string[];
+  repos?: BlockRepo[];
+}): Block | null;
+
+export declare function updateBlock(
+  blockId: string,
+  updates: Partial<Block>
+): Block | null;
+
+export declare function openBlockModal(blockId?: string | null): void;
+export declare function closeBlockModal(): void;
+
+
 

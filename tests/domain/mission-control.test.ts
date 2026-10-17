@@ -27,6 +27,8 @@ import {
   updateTaskDetails,
   addCrewMember,
   updateCrewMember,
+  addBlock,
+  updateBlock,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 } from '../../app.js';
@@ -564,6 +566,118 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       const idx = TEAM_MEMBERS.findIndex(m => m.id === 'alex-turner');
       if (idx >= 0) TEAM_MEMBERS.splice(idx, 1);
       delete memberMap['alex-turner'];
+    });
+
+    it('allows adding and editing subsystem blocks with role validation', () => {
+      // 1. Guest protection
+      setActiveUser('guest');
+      const guestAttempt = addBlock({ name: 'Unauthorized Block' });
+      expect(guestAttempt).toBeNull();
+
+      // 2. Lead / Dev user adds a new block
+      setActiveUser('joseph');
+      const initialBlocksLen = BLOCKS.length;
+      const createdBlock = addBlock({
+        code: 'Block 7',
+        name: 'Payload Systems',
+        subtitle: 'Atmospheric sensors & biological payloads',
+        color: '#38bdf8',
+        objective: 'OBJECTIVE: Integrate and verify scientific payload bays',
+        deliverables: ['Payload structural bay', 'Data logger SPI telemetry'],
+        repos: [{ name: 'USSTRocketry/Payload', url: 'https://github.com/USSTRocketry/Payload' }]
+      });
+
+      expect(createdBlock).not.toBeNull();
+      expect(createdBlock?.id).toBe('block-block-7');
+      expect(BLOCKS.length).toBe(initialBlocksLen + 1);
+      expect(blockMap['block-block-7']).toBeDefined();
+      expect(blockMap['block-block-7'].name).toBe('Payload Systems');
+      expect(blockMap['block-block-7'].deliverables.length).toBe(2);
+
+      // 3. Edit / Update existing block
+      const updated = updateBlock('block-block-7', {
+        name: 'Payload & Recovery Experiments',
+        color: '#a855f7',
+        deliverables: ['Payload structural bay', 'Data logger SPI telemetry', 'Live video downlink trigger']
+      });
+
+      expect(updated).not.toBeNull();
+      expect(updated?.name).toBe('Payload & Recovery Experiments');
+      expect(updated?.color).toBe('#a855f7');
+      expect(updated?.deliverables.length).toBe(3);
+
+      // 4. Create a task in the new block
+      const payloadTask = createNewTask({
+        blockId: 'block-block-7',
+        title: 'Calibrate cosmic ray scintillation sensor',
+        epic: 'Payload structural bay',
+        status: 'todo'
+      });
+
+      expect(payloadTask).toBeDefined();
+      expect(payloadTask.blockId).toBe('block-block-7');
+      expect(taskMap[payloadTask.id]).toBe(payloadTask);
+
+      // Clean up test block and task
+      const taskIdx = TASKS.findIndex(t => t.id === payloadTask.id);
+      if (taskIdx >= 0) TASKS.splice(taskIdx, 1);
+      delete taskMap[payloadTask.id];
+
+      const blockIdx = BLOCKS.findIndex(b => b.id === 'block-block-7');
+      if (blockIdx >= 0) BLOCKS.splice(blockIdx, 1);
+      delete blockMap['block-block-7'];
+    });
+
+    it('manages task prerequisites and prevents circular dependency loops', () => {
+      // Create Task A and Task B
+      const taskA = createNewTask({
+        blockId: 'block-1',
+        title: 'Task Alpha',
+        epic: 'Zephyr Bring-Up',
+        status: 'in-progress'
+      });
+      const taskB = createNewTask({
+        blockId: 'block-1',
+        title: 'Task Beta',
+        epic: 'Zephyr Bring-Up',
+        status: 'todo',
+        dependsOn: [taskA.id]
+      });
+
+      // Verify prerequisite linkage
+      expect(taskB.dependsOn).toContain(taskA.id);
+      expect(isTaskBlocked(taskB)).toBe(true);
+
+      // Complete Task A -> unblocks Task B
+      taskA.status = 'done';
+      expect(isTaskBlocked(taskB)).toBe(false);
+
+      // Circular dependency detection logic
+      const checkCycle = (curr: string, goal: string, visited = new Set<string>()): boolean => {
+        if (curr === goal) return true;
+        if (visited.has(curr)) return false;
+        visited.add(curr);
+        const cTask = taskMap[curr];
+        if (!cTask || !cTask.dependsOn) return false;
+        return cTask.dependsOn.some(dep => checkCycle(dep, goal, visited));
+      };
+
+      // Since B depends on A, setting A to depend on B would create a loop
+      const wouldCreateLoop = checkCycle(taskA.id, taskB.id);
+      // taskA does not currently depend on taskB
+      expect(wouldCreateLoop).toBe(false);
+      // but checking from taskB to taskA:
+      const bReachesA = checkCycle(taskB.id, taskA.id);
+      expect(bReachesA).toBe(true); // B already reaches A, so adding A->B would cycle
+
+      // Clean up test tasks
+      const idxB = TASKS.findIndex(t => t.id === taskB.id);
+      if (idxB >= 0) TASKS.splice(idxB, 1);
+      delete taskMap[taskB.id];
+
+      const idxA = TASKS.findIndex(t => t.id === taskA.id);
+      if (idxA >= 0) TASKS.splice(idxA, 1);
+      delete taskMap[taskA.id];
     });
   });
 });

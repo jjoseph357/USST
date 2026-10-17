@@ -154,7 +154,7 @@ function getAuditLog() {
   return auditLog;
 }
 
-const BLOCKS = [
+let BLOCKS = [
   {
     id: 'block-0',
     code: 'Block 0',
@@ -816,6 +816,23 @@ function loadStoredState() {
       }
     }
 
+    const storedBlocks = localStorage.getItem('usst_blocks_v2');
+    if (storedBlocks) {
+      const parsedBlocks = JSON.parse(storedBlocks);
+      if (Array.isArray(parsedBlocks) && parsedBlocks.length > 0) {
+        parsedBlocks.forEach(pb => {
+          if (!pb || !pb.id) return;
+          const existing = blockMap[pb.id];
+          if (existing) {
+            Object.assign(existing, pb);
+          } else {
+            BLOCKS.push(pb);
+            blockMap[pb.id] = pb;
+          }
+        });
+      }
+    }
+
     const storedTheme = localStorage.getItem('usst_theme_v2');
     if (storedTheme === 'dark' || storedTheme === 'light') {
       applyTheme(storedTheme);
@@ -831,6 +848,7 @@ function saveStoredState() {
     localStorage.setItem('usst_tasks_v2', JSON.stringify(TASKS));
     localStorage.setItem('usst_active_user_v2', currentUserId);
     localStorage.setItem('usst_members_v2', JSON.stringify(TEAM_MEMBERS));
+    localStorage.setItem('usst_blocks_v2', JSON.stringify(BLOCKS));
   } catch (e) {
     console.warn('Failed to save state to localStorage:', e);
   }
@@ -1137,17 +1155,23 @@ function renderTaskCardHTML(task, blockColor) {
           <span class="task-id">${task.id}</span>
           <span class="task-epic-pill">${task.epic}</span>
         </div>
-        <div class="task-status-wrap">
-          <span class="status-badge status-${task.status}">${getStatusLabel(task.status)}</span>
+        <div class="task-right-actions">
           ${!isGuest ? `
-            <select class="card-status-select" data-quick-status="${task.id}" aria-label="Change status for ${task.id}" title="Quick-change status">
-              <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Backlog</option>
-              <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-              <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>Testing & Verify</option>
-              <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Waiting on HW</option>
-              <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed</option>
-            </select>
+            <button type="button" class="task-inline-add-btn" data-inline-add="${task.id}" title="Add a follow-up task right here (links ${task.id} as prerequisite)">+ Add</button>
+            <div class="flow-connect-handle" draggable="true" data-connect-source="${task.id}" title="Drag this arrow (→) onto another task to set ${task.id} as its prerequisite">→</div>
           ` : ''}
+          <div class="task-status-wrap">
+            <span class="status-badge status-${task.status}">${getStatusLabel(task.status)}</span>
+            ${!isGuest ? `
+              <select class="card-status-select" data-quick-status="${task.id}" aria-label="Change status for ${task.id}" title="Quick-change status">
+                <option value="todo" ${task.status === 'todo' ? 'selected' : ''}>Backlog</option>
+                <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                <option value="testing" ${task.status === 'testing' ? 'selected' : ''}>Testing & Verify</option>
+                <option value="blocked" ${task.status === 'blocked' ? 'selected' : ''}>Waiting on HW</option>
+                <option value="done" ${task.status === 'done' ? 'selected' : ''}>Completed</option>
+              </select>
+            ` : ''}
+          </div>
         </div>
       </div>
 
@@ -1209,6 +1233,32 @@ function attachCardInteractions(container) {
     });
   });
 
+  // Inline task add button
+  container.querySelectorAll('[data-inline-add]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const taskId = btn.getAttribute('data-inline-add');
+      const t = taskMap[taskId];
+      if (t) {
+        openNewTaskModal({ defaultBlockId: t.blockId, defaultEpic: t.epic, predecessorId: t.id });
+      }
+    });
+  });
+
+  // Flow connect arrow handle
+  container.querySelectorAll('[data-connect-source]').forEach(handle => {
+    handle.addEventListener('click', e => e.stopPropagation());
+    handle.addEventListener('dragstart', e => {
+      e.stopPropagation();
+      const sourceId = handle.getAttribute('data-connect-source');
+      if (sourceId && e.dataTransfer) {
+        e.dataTransfer.setData('application/usst-connect-source', sourceId);
+        e.dataTransfer.setData('text/plain', sourceId);
+        e.dataTransfer.effectAllowed = 'link';
+      }
+    });
+  });
+
   // Card Click & Drag Events
   container.querySelectorAll('.task-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -1231,6 +1281,52 @@ function attachCardInteractions(container) {
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
+    });
+    card.addEventListener('dragover', e => {
+      if (e.dataTransfer && e.dataTransfer.types.includes('application/usst-connect-source')) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'link';
+        card.classList.add('connect-target-hover');
+      }
+    });
+    card.addEventListener('dragleave', () => {
+      card.classList.remove('connect-target-hover');
+    });
+    card.addEventListener('drop', e => {
+      if (e.dataTransfer && e.dataTransfer.types.includes('application/usst-connect-source')) {
+        e.preventDefault();
+        e.stopPropagation();
+        card.classList.remove('connect-target-hover');
+        const sourceId = e.dataTransfer.getData('application/usst-connect-source') || e.dataTransfer.getData('text/plain');
+        const targetId = card.getAttribute('data-task-id');
+        if (sourceId && targetId && sourceId !== targetId) {
+          const targetTask = taskMap[targetId];
+          const sourceTask = taskMap[sourceId];
+          if (targetTask && sourceTask) {
+            if (targetTask.dependsOn.includes(sourceId)) {
+              return;
+            }
+            const checkCycle = (curr, goal, visited = new Set()) => {
+              if (curr === goal) return true;
+              if (visited.has(curr)) return false;
+              visited.add(curr);
+              const cTask = taskMap[curr];
+              if (!cTask || !cTask.dependsOn) return false;
+              return cTask.dependsOn.some(dep => checkCycle(dep, goal, visited));
+            };
+            if (checkCycle(sourceId, targetId)) {
+              alert(`Cannot link tasks: this would create a circular dependency loop (${sourceId} ↔ ${targetId}).`);
+              return;
+            }
+            targetTask.dependsOn.push(sourceId);
+            addAuditLog(`Linked dependency: ${sourceId} ➔ ${targetId}`);
+            saveStoredState();
+            syncTaskToFirestore(targetTask);
+            renderAll();
+          }
+        }
+      }
     });
   });
 }
@@ -1265,6 +1361,96 @@ function renderHierarchyView(filtered) {
       `<span class="deliverable-tag">${d}</span>`
     ).join('');
 
+    // Flow tasks: tasks with prerequisites or tasks that block other tasks in this block
+    const flowTasks = blockTasks.filter(t =>
+      (t.dependsOn && t.dependsOn.length > 0) ||
+      blockTasks.some(other => other.dependsOn && other.dependsOn.includes(t.id))
+    );
+
+    // Standalone tasks: tasks with no prerequisites and no downstream dependents in this block
+    const standaloneTasks = blockTasks.filter(t =>
+      (!t.dependsOn || t.dependsOn.length === 0) &&
+      !blockTasks.some(other => other.dependsOn && other.dependsOn.includes(t.id))
+    );
+
+    let flowContentHTML = '';
+    if (flowTasks.length > 0) {
+      // Group flow tasks by deliverable epic
+      const epicMap = new Map();
+      flowTasks.forEach(t => {
+        const key = t.epic || 'Sequential Flow';
+        if (!epicMap.has(key)) epicMap.set(key, []);
+        epicMap.get(key).push(t);
+      });
+
+      const flowChainsHTML = Array.from(epicMap.entries()).map(([epicName, tasksInEpic]) => {
+        const sorted = [...tasksInEpic].sort((a, b) => {
+          if (b.dependsOn.includes(a.id)) return -1;
+          if (a.dependsOn.includes(b.id)) return 1;
+          return a.id.localeCompare(b.id);
+        });
+
+        const nodesHTML = sorted.map((t, idx) => {
+          const externalDeps = (t.dependsOn || []).filter(depId => !tasksInEpic.some(ot => ot.id === depId));
+          const externalBadge = externalDeps.length > 0
+            ? `<div style="display:flex; align-items:center; gap:0.25rem;">
+                <span class="block-external-pill" title="Prerequisite task">Pre: ${externalDeps.join(', ')}</span>
+                <span class="flow-arrow">➔</span>
+               </div>`
+            : '';
+          const arrowAfter = (idx < sorted.length - 1)
+            ? `<div class="flow-arrow" title="Sequentially unlocks next task">➔</div>`
+            : '';
+
+          return `
+            ${externalBadge}
+            ${renderTaskCardHTML(t, block.color)}
+            ${arrowAfter}
+          `;
+        }).join('');
+
+        return `
+          <div class="flow-chain-group" style="margin-bottom: 0.9rem;">
+            <div class="flow-chain-header">
+              <span class="dot dot-progress" style="background:${block.color}"></span>
+              <span>${epicName} Sequence</span>
+            </div>
+            <div class="block-chain-flow">
+              ${nodesHTML}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      flowContentHTML = `
+        <div class="block-flow-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+          </svg>
+          Sequential Dependency Flow (Drag arrow → or click + Add to chain tasks)
+        </div>
+        ${flowChainsHTML}
+      `;
+    }
+
+    let standaloneContentHTML = '';
+    if (standaloneTasks.length > 0) {
+      standaloneContentHTML = `
+        <div class="block-flow-section-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          Independent Tasks (No Prerequisites · Ready to Work)
+        </div>
+        <div class="tasks-grid">
+          ${standaloneTasks.map(t => renderTaskCardHTML(t, block.color)).join('')}
+        </div>
+      `;
+    }
+
     return `
       <section class="block-section ${isCollapsed ? 'is-collapsed' : ''}" style="--block-color: ${block.color}" data-block-section="${block.id}">
         <div class="block-header">
@@ -1283,6 +1469,9 @@ function renderHierarchyView(filtered) {
             <button type="button" class="btn btn-secondary btn-sm" data-add-to-block="${block.id}" title="Add a task directly to ${block.code}">
               + Add Task
             </button>
+            <button type="button" class="btn btn-ghost btn-sm" data-edit-block="${block.id}" title="Edit ${block.code} properties">
+              ✏️ Edit Block
+            </button>
             <button type="button" class="btn btn-ghost btn-sm" data-toggle-block="${block.id}" title="${isCollapsed ? 'Expand block' : 'Collapse block'}">
               ${isCollapsed ? 'Expand ▾' : 'Collapse ▴'}
             </button>
@@ -1295,9 +1484,9 @@ function renderHierarchyView(filtered) {
         </div>
 
         ${!isCollapsed ? `
-          <div class="tasks-grid">
+          <div class="block-body-content" style="padding-top: 0.5rem;">
             ${blockTasks.length > 0
-              ? blockTasks.map(t => renderTaskCardHTML(t, block.color)).join('')
+              ? `${flowContentHTML}${standaloneContentHTML}`
               : `<div class="empty-block-msg">No tasks match the current filter in ${block.code}.</div>`
             }
           </div>
@@ -1313,6 +1502,14 @@ function renderHierarchyView(filtered) {
     btn.addEventListener('click', () => {
       const blockId = btn.getAttribute('data-add-to-block');
       openNewTaskModal({ defaultBlockId: blockId });
+    });
+  });
+
+  // Edit Block button per block
+  container.querySelectorAll('[data-edit-block]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const blockId = btn.getAttribute('data-edit-block');
+      if (blockId) openBlockModal(blockId);
     });
   });
 
@@ -1577,7 +1774,7 @@ function openTaskModal(taskId, isEditMode = false) {
           </div>
 
           <div class="modal-section">
-            <label class="modal-section-title" for="editTaskDeps">Predecessor Dependencies (Comma-separated Task IDs)</label>
+            <label class="modal-section-title" for="editTaskDeps">Prerequisite Tasks (Must finish first) - Comma-separated Task IDs</label>
             <input type="text" class="form-input" id="editTaskDeps" value="${(task.dependsOn || []).join(', ')}" placeholder="e.g. B1-01, B1-02" />
           </div>
 
@@ -1777,34 +1974,45 @@ function openTaskModal(taskId, isEditMode = false) {
       ${checklistInteractiveHTML}
 
       <div class="modal-section">
-        <div class="modal-section-title">Task Dependencies & Critical Path</div>
-        <div class="dep-box modal-dep-box">
-          <div class="dep-line ${unmet.length > 0 ? 'blocked-by' : 'unblocked'}">
-            ${task.dependsOn.length > 0
-              ? `<strong>Requires Predecessors:</strong> ${task.dependsOn.map(d => `<button type="button" class="dep-jump-chip" data-jump-task="${d}">${d} (${taskMap[d]?.status || 'todo'})</button>`).join(' ')}`
-              : '<em>No predecessor dependencies (Root Task)</em>'}
+        <div class="modal-section-title">Prerequisite Tasks (Must finish first)</div>
+        <p class="dep-help-tip">These tasks must be completed before ${task.id} can proceed.</p>
+        <div class="dep-chips-row">
+          ${task.dependsOn.length > 0
+            ? task.dependsOn.map(d => `
+                <span class="dep-chip-pill" style="--node-color: ${blockMap[taskMap[d]?.blockId]?.color || '#3b82f6'}">
+                  <strong>${d}</strong>: ${taskMap[d]?.title || d}
+                  ${!isGuest ? `<button type="button" class="dep-chip-remove" data-remove-prereq="${d}" title="Remove prerequisite ${d}">✕</button>` : ''}
+                </span>
+              `).join('')
+            : '<span class="muted-text">None (This is a root task — ready to work anytime).</span>'
+          }
+        </div>
+
+        ${!isGuest ? `
+          <div class="add-prereq-row">
+            <select class="form-select" id="addPrereqSelect" style="font-size: 0.8rem;">
+              <option value="">+ Add Prerequisite Task...</option>
+              ${candidateDeps.filter(c => !task.dependsOn.includes(c.id)).map(c => `
+                <option value="${c.id}">${c.id}: ${escapeHtml(c.title)}</option>
+              `).join('')}
+            </select>
           </div>
-          <div class="dep-line leads-to">
+        ` : ''}
+
+        <div style="margin-top: 0.75rem;">
+          <div class="modal-section-title" style="font-size: 0.75rem;">Unlocks Next (Tasks that wait on this)</div>
+          <div class="dep-chips-row">
             ${downstream.length > 0
-              ? `<strong>Unlocks Downstream:</strong> ${downstream.map(d => `<button type="button" class="dep-jump-chip" data-jump-task="${d.id}">${d.id}</button>`).join(' ')}`
-              : '<em>No downstream dependents</em>'}
+              ? downstream.map(d => `
+                  <span class="dep-chip-pill unlock-pill">
+                    <strong>${d.id}</strong>: ${d.title}
+                  </span>
+                `).join('')
+              : '<span class="muted-text">None (No downstream tasks are waiting on this).</span>'
+            }
           </div>
         </div>
-        ${!isGuest && candidateDeps.length > 0 ? `
-          <details class="dep-picker-details">
-            <summary>Edit Predecessor Dependencies (${task.dependsOn.length} selected)</summary>
-            <div class="dep-picker-list">
-              ${candidateDeps.map(cand => {
-                const isDep = task.dependsOn.includes(cand.id);
-                return `<button type="button" class="dep-toggle-option ${isDep ? 'active' : ''}" data-toggle-dep="${cand.id}">
-                  <span class="dep-opt-id">${cand.id}</span>
-                  <span class="dep-opt-title">${cand.title}</span>
-                  <span class="dep-opt-state">${isDep ? '✓ Linked' : '+ Link'}</span>
-                </button>`;
-              }).join('')}
-            </div>
-          </details>
-        ` : ''}
+        <p class="dep-help-tip">💡 <strong>Pro-Tip:</strong> You can also drag the arrow (→) on any task card directly onto another card to link them!</p>
       </div>
 
       <div class="modal-section">
@@ -1913,24 +2121,48 @@ function openTaskModal(taskId, isEditMode = false) {
       });
     });
 
-    // Toggle dependency link
-    taskBodyEl.querySelectorAll('[data-toggle-dep]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const depId = btn.getAttribute('data-toggle-dep');
+    // Remove prerequisite dependency link
+    taskBodyEl.querySelectorAll('[data-remove-prereq]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const depId = btn.getAttribute('data-remove-prereq');
         if (!depId) return;
-        if (task.dependsOn.includes(depId)) {
-          task.dependsOn = task.dependsOn.filter(d => d !== depId);
-          addAuditLog(`Removed dependency ${depId} from ${task.id}`);
-        } else {
-          task.dependsOn.push(depId);
-          addAuditLog(`Added dependency ${depId} to ${task.id}`);
-        }
+        task.dependsOn = task.dependsOn.filter(d => d !== depId);
+        addAuditLog(`Removed prerequisite ${depId} from ${task.id}`);
         saveStoredState();
         syncTaskToFirestore(task);
         renderAll();
         openTaskModal(task.id, false);
       });
     });
+
+    // Add prerequisite via select dropdown
+    const addPrereqSelect = document.getElementById('addPrereqSelect');
+    if (addPrereqSelect) {
+      addPrereqSelect.addEventListener('change', () => {
+        const depId = addPrereqSelect.value;
+        if (depId && !task.dependsOn.includes(depId)) {
+          const checkCycle = (curr, goal, visited = new Set()) => {
+            if (curr === goal) return true;
+            if (visited.has(curr)) return false;
+            visited.add(curr);
+            const cTask = taskMap[curr];
+            if (!cTask || !cTask.dependsOn) return false;
+            return cTask.dependsOn.some(dep => checkCycle(dep, goal, visited));
+          };
+          if (checkCycle(depId, task.id)) {
+            alert('Cannot add prerequisite: this would create a circular dependency loop.');
+            return;
+          }
+          task.dependsOn.push(depId);
+          addAuditLog(`Added prerequisite ${depId} to ${task.id}`);
+          saveStoredState();
+          syncTaskToFirestore(task);
+          renderAll();
+          openTaskModal(task.id, false);
+        }
+      });
+    }
 
     // Add new checklist step
     const addStepBtn = document.getElementById('modalAddStepBtn');
@@ -2022,6 +2254,9 @@ function openNewTaskModal(options = {}) {
   const defaultStatus = options.defaultStatus || 'todo';
   const selectedAssignees = new Set([user.id]);
   const selectedDeps = new Set();
+  if (options.predecessorId) {
+    selectedDeps.add(options.predecessorId);
+  }
 
   const taskIdEl = document.getElementById('modalTaskId');
   const taskBlockEl = document.getElementById('modalTaskBlock');
@@ -2068,7 +2303,7 @@ function openNewTaskModal(options = {}) {
 
       <div class="modal-section">
         <div class="modal-section-title">Deliverable / Epic</div>
-        <input type="text" class="form-input" id="newTaskEpicInput" list="modalEpicSuggestions" placeholder="Select a block deliverable or type custom epic..." />
+        <input type="text" class="form-input" id="newTaskEpicInput" list="modalEpicSuggestions" value="${escapeHtml(options.defaultEpic || '')}" placeholder="Select a block deliverable or type custom epic..." />
         <datalist id="modalEpicSuggestions"></datalist>
       </div>
 
@@ -2087,8 +2322,8 @@ function openNewTaskModal(options = {}) {
       </div>
 
       <div class="modal-section">
-        <div class="modal-section-title">Dependencies (Predecessor Task IDs)</div>
-        <input type="text" class="form-input" id="newTaskDepsInput" placeholder="Click tasks below or type IDs (e.g. B1-01, B1-03)" />
+        <div class="modal-section-title">Prerequisite Tasks (Must finish first)</div>
+        <input type="text" class="form-input" id="newTaskDepsInput" value="${Array.from(selectedDeps).join(', ')}" placeholder="Click tasks below or type IDs (e.g. B1-01, B1-03)" />
         <div class="dep-picker-list" id="newTaskDepPickerList" style="max-height: 135px; overflow-y: auto; margin-top: 0.35rem;">
           <!-- Populated dynamically by selected Block -->
         </div>
@@ -2591,6 +2826,230 @@ function updateCrewMember(id, updates = {}) {
   return member;
 }
 
+function addBlock({ name, code, subtitle, color, objective, deliverables, repos } = {}) {
+  const user = getActiveUser();
+  if (user.id === 'guest') {
+    if (typeof alert !== 'undefined') {
+      alert('Guests have read-only access. Switch crew member in the top-right profile switcher to create blocks.');
+    }
+    return null;
+  }
+  const cleanName = String(name || '').trim();
+  if (!cleanName) return null;
+  const cleanCode = String(code || `Block ${BLOCKS.length}`).trim();
+  const rawId = `block-${cleanCode.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.replace(/-+$/, '');
+  const id = blockMap[rawId] ? `${rawId}-${Date.now().toString(36).slice(-4)}` : rawId;
+
+  const newBlock = {
+    id,
+    code: cleanCode,
+    name: cleanName,
+    subtitle: String(subtitle || '').trim(),
+    color: color || FUN_COLOR_PALETTE[BLOCKS.length % FUN_COLOR_PALETTE.length] || '#38bdf8',
+    objective: String(objective || '').trim(),
+    repos: Array.isArray(repos) ? repos : [],
+    deliverables: Array.isArray(deliverables) ? deliverables : []
+  };
+
+  BLOCKS.push(newBlock);
+  blockMap[newBlock.id] = newBlock;
+  addAuditLog(`Created subsystem block: ${newBlock.code} (${newBlock.name})`);
+  saveStoredState();
+  if (typeof document !== 'undefined') {
+    populateBlockFilter();
+    renderAll();
+  }
+  return newBlock;
+}
+
+function updateBlock(blockId, updates = {}) {
+  const user = getActiveUser();
+  if (user.id === 'guest') {
+    if (typeof alert !== 'undefined') {
+      alert('Guests have read-only access. Switch crew member in the top-right profile switcher to edit blocks.');
+    }
+    return null;
+  }
+  const block = blockMap[blockId];
+  if (!block) return null;
+
+  if (updates.name !== undefined) block.name = String(updates.name).trim();
+  if (updates.code !== undefined) block.code = String(updates.code).trim();
+  if (updates.subtitle !== undefined) block.subtitle = String(updates.subtitle).trim();
+  if (updates.color !== undefined) block.color = String(updates.color).trim();
+  if (updates.objective !== undefined) block.objective = String(updates.objective).trim();
+  if (Array.isArray(updates.repos)) block.repos = updates.repos;
+  if (Array.isArray(updates.deliverables)) block.deliverables = updates.deliverables;
+
+  addAuditLog(`Updated subsystem block: ${block.code} (${block.name})`);
+  saveStoredState();
+  if (typeof document !== 'undefined') {
+    populateBlockFilter();
+    renderAll();
+  }
+  return block;
+}
+
+function openBlockModal(blockId = null) {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('blockModal');
+  if (!modal) return;
+  const user = getActiveUser();
+  if (user.id === 'guest') {
+    alert('Guests have read-only access. Switch crew member in the top-right profile switcher to manage blocks.');
+    return;
+  }
+
+  const isEditing = Boolean(blockId && blockMap[blockId]);
+  const block = isEditing ? blockMap[blockId] : {
+    id: '',
+    code: `Block ${BLOCKS.length}`,
+    name: '',
+    subtitle: '',
+    color: FUN_COLOR_PALETTE[BLOCKS.length % FUN_COLOR_PALETTE.length] || '#38bdf8',
+    objective: '',
+    repos: [],
+    deliverables: []
+  };
+
+  const titleEl = document.getElementById('modalBlockTitle');
+  if (titleEl) {
+    titleEl.textContent = isEditing ? `Edit ${block.code} Subsystem` : 'Add New Subsystem Block';
+  }
+
+  const bodyEl = document.getElementById('modalBlockBody');
+  if (bodyEl) {
+    const reposText = (block.repos || []).map(r => `${r.name}, ${r.url}`).join('\n');
+    const deliverablesText = (block.deliverables || []).join('\n');
+
+    bodyEl.innerHTML = `
+      <form id="blockForm" class="modal-edit-grid">
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockCodeInput">Block Code / Identifier *</label>
+          <input type="text" class="form-input" id="blockCodeInput" value="${escapeHtml(block.code)}" placeholder="e.g. Block 7 or B7" required />
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockNameInput">Subsystem Name *</label>
+          <input type="text" class="form-input" id="blockNameInput" value="${escapeHtml(block.name)}" placeholder="e.g. Payload & Science Systems" required />
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockSubtitleInput">Subtitle / Domain Summary</label>
+          <input type="text" class="form-input" id="blockSubtitleInput" value="${escapeHtml(block.subtitle)}" placeholder="e.g. Experiments · Sensor instrumentation · Ejection mechanisms" />
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title">Block Accent Color</label>
+          <div style="display:flex; align-items:center; gap:0.6rem;">
+            <input type="color" id="blockColorPicker" value="${block.color}" style="width:36px; height:36px; border:none; border-radius:4px; cursor:pointer;" />
+            <input type="text" class="form-input" id="blockColorInput" value="${block.color}" style="max-width:110px;" />
+          </div>
+          <div class="color-swatches-grid" id="blockColorSwatches">
+            ${FUN_COLOR_PALETTE.map(c => `
+              <button type="button" class="color-swatch-btn ${c === block.color ? 'active' : ''}" data-swatch-color="${c}" style="background-color: ${c};" title="Select color ${c}"></button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockObjectiveInput">Core Engineering Objective</label>
+          <textarea class="form-textarea" id="blockObjectiveInput" rows="2" placeholder="e.g. OBJECTIVE: Design, integrate, and verify scientific payloads for sub-orbital flight.">${escapeHtml(block.objective)}</textarea>
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockDeliverablesInput">Key Deliverables (One per line)</label>
+          <textarea class="form-textarea" id="blockDeliverablesInput" rows="3" placeholder="Payload housing & structural integration&#10;Data logger driver & SPI telemetry&#10;Ejection mechanism deployment verification">${escapeHtml(deliverablesText)}</textarea>
+        </div>
+
+        <div class="modal-section">
+          <label class="modal-section-title" for="blockReposInput">Linked GitHub Repositories (Format: RepoName, URL - one per line)</label>
+          <textarea class="form-textarea" id="blockReposInput" rows="2" placeholder="USSTRocketry/Payload, https://github.com/USSTRocketry/Payload">${escapeHtml(reposText)}</textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.55rem; margin-top:0.75rem;">
+          <button type="button" class="btn btn-ghost" id="cancelBlockBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">${isEditing ? 'Save Changes' : 'Create Block'}</button>
+        </div>
+      </form>
+    `;
+
+    const colorPicker = document.getElementById('blockColorPicker');
+    const colorInput = document.getElementById('blockColorInput');
+    const swatches = bodyEl.querySelectorAll('[data-swatch-color]');
+
+    swatches.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = btn.getAttribute('data-swatch-color');
+        if (colorPicker) colorPicker.value = c;
+        if (colorInput) colorInput.value = c;
+        swatches.forEach(s => s.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    colorPicker?.addEventListener('input', e => {
+      if (colorInput) colorInput.value = e.target.value;
+      swatches.forEach(s => s.classList.remove('active'));
+    });
+    colorInput?.addEventListener('input', e => {
+      if (colorPicker && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+        colorPicker.value = e.target.value;
+      }
+    });
+
+    document.getElementById('cancelBlockBtn')?.addEventListener('click', closeBlockModal);
+
+    const form = document.getElementById('blockForm');
+    if (form) {
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const code = document.getElementById('blockCodeInput')?.value?.trim();
+        const name = document.getElementById('blockNameInput')?.value?.trim();
+        const subtitle = document.getElementById('blockSubtitleInput')?.value?.trim() || '';
+        const color = document.getElementById('blockColorInput')?.value?.trim() || '#38bdf8';
+        const objective = document.getElementById('blockObjectiveInput')?.value?.trim() || '';
+        const deliverables = (document.getElementById('blockDeliverablesInput')?.value || '')
+          .split('\n')
+          .map(d => d.trim())
+          .filter(Boolean);
+        const reposRaw = (document.getElementById('blockReposInput')?.value || '')
+          .split('\n')
+          .map(r => r.trim())
+          .filter(Boolean);
+
+        const repos = reposRaw.map(line => {
+          const parts = line.split(',');
+          if (parts.length >= 2) {
+            return { name: parts[0].trim(), url: parts.slice(1).join(',').trim() };
+          }
+          const trimmed = line.trim();
+          return { name: trimmed.split('/').pop() || trimmed, url: trimmed };
+        });
+
+        if (isEditing) {
+          updateBlock(block.id, { code, name, subtitle, color, objective, deliverables, repos });
+        } else {
+          addBlock({ code, name, subtitle, color, objective, deliverables, repos });
+        }
+        closeBlockModal();
+      });
+    }
+  }
+
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeBlockModal() {
+  if (typeof document === 'undefined') return;
+  const modal = document.getElementById('blockModal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
 function toggleChecklistItem(taskId, index) {
   const task = taskMap[taskId];
   if (!task) return;
@@ -2623,12 +3082,13 @@ function addTaskNote(taskId, noteText) {
 function createNewTask({ blockId, title, epic, status, assignees, dependsOn, checklist, tags }) {
   const block = blockMap[blockId] || BLOCKS[0];
   const blockNum = block.id.replace('block-', '');
+  const prefix = `B${blockNum}`;
   const existingInBlock = TASKS.filter(t => t.blockId === block.id);
   let nextNum = existingInBlock.length + 1;
-  let taskId = `B${blockNum}-${String(nextNum).padStart(2, '0')}`;
+  let taskId = `${prefix}-${String(nextNum).padStart(2, '0')}`;
   while (taskMap[taskId]) {
     nextNum++;
-    taskId = `B${blockNum}-${String(nextNum).padStart(2, '0')}`;
+    taskId = `${prefix}-${String(nextNum).padStart(2, '0')}`;
   }
 
   const newTask = {
@@ -2677,7 +3137,7 @@ function populateBlockFilter() {
   if (typeof document === 'undefined') return;
   const select = document.getElementById('blockFilter');
   if (!select) return;
-  select.innerHTML = '<option value="all">All Blocks (0–6)</option>';
+  select.innerHTML = '<option value="all">All Blocks</option>';
   BLOCKS.forEach(b => {
     const opt = document.createElement('option');
     opt.value = b.id;
@@ -2692,6 +3152,7 @@ function populateBlockFilter() {
 function populateQuickAddBar() {
   if (typeof document === 'undefined') return;
   const blockSelect = document.getElementById('quickAddBlock');
+  if (!blockSelect) return;
   const assigneeSelect = document.getElementById('quickAddAssignee');
   const epicDatalist = document.getElementById('quickEpicList');
 
@@ -2853,10 +3314,15 @@ export function init() {
     });
   }
 
-  // New Task Button
+  // New Task & New Block Buttons
   const newTaskBtn = document.getElementById('newTaskBtn');
   if (newTaskBtn) {
     newTaskBtn.addEventListener('click', () => openNewTaskModal());
+  }
+
+  const addBlockBtn = document.getElementById('addBlockBtn');
+  if (addBlockBtn) {
+    addBlockBtn.addEventListener('click', () => openBlockModal());
   }
 
   // Modals close buttons
@@ -2865,6 +3331,9 @@ export function init() {
 
   const profileModalCloseBtn = document.getElementById('profileModalCloseBtn');
   if (profileModalCloseBtn) profileModalCloseBtn.addEventListener('click', closeProfileModal);
+
+  const blockModalCloseBtn = document.getElementById('blockModalCloseBtn');
+  if (blockModalCloseBtn) blockModalCloseBtn.addEventListener('click', closeBlockModal);
 
   // Close modals on backdrop click
   const taskModal = document.getElementById('taskDetailModal');
@@ -2881,11 +3350,19 @@ export function init() {
     });
   }
 
+  const blockModal = document.getElementById('blockModal');
+  if (blockModal) {
+    blockModal.addEventListener('click', e => {
+      if (e.target === blockModal) closeBlockModal();
+    });
+  }
+
   // Global Keyboard Shortcuts
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       closeTaskModal();
       closeProfileModal();
+      closeBlockModal();
       return;
     }
     const tag = document.activeElement?.tagName?.toLowerCase();
@@ -3020,6 +3497,10 @@ export {
   updateTaskDetails,
   addCrewMember,
   updateCrewMember,
+  addBlock,
+  updateBlock,
+  openBlockModal,
+  closeBlockModal,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 };

@@ -94,6 +94,16 @@
         Export
       </button>
 
+      <button class="btn btn-secondary" id="addBlockBtn" title="Create a new engineering subsystem block">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+        New Block
+      </button>
+
       <button class="btn btn-primary" id="newTaskBtn" title="Create a new task (Shortcut: N)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -120,7 +130,7 @@
   <section class="controls-bar">
     <div class="controls-left">
       <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Workspace Views">
-        <button class="view-tab active" data-view="hierarchy" role="tab" aria-selected="true">
+        <button class="view-tab active" data-view="hierarchy" role="tab" aria-selected="true" title="Unified Subsystem Blocks & Sequential Dependency Flowchart">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -128,9 +138,9 @@
             <rect x="14" y="14" width="7" height="7" rx="1" />
             <rect x="3" y="14" width="7" height="7" rx="1" />
           </svg>
-          Subsystems
+          Subsystems &amp; Flow
         </button>
-        <button class="view-tab" data-view="kanban" role="tab" aria-selected="false">
+        <button class="view-tab" data-view="kanban" role="tab" aria-selected="false" title="Kanban Board View">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="5" height="18" rx="1" />
@@ -138,15 +148,6 @@
             <rect x="17" y="3" width="5" height="15" rx="1" />
           </svg>
           Kanban Board
-        </button>
-        <button class="view-tab" data-view="dependencies" role="tab" aria-selected="false">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="6" cy="6" r="3" />
-            <circle cx="6" cy="18" r="3" />
-            <path d="M20 4 8.12 15.88M14.47 14.48 20 20M8.12 8.12 12 12" />
-          </svg>
-          Dependency Graph
         </button>
       </div>
 
@@ -189,28 +190,6 @@
     </div>
   </section>
 
-  <!-- Streamlined Inline Quick-Add Bar -->
-  <section class="quick-add-section" aria-label="Quick Add Task">
-    <form class="quick-add-bar" id="quickAddForm">
-      <div class="quick-add-label">
-        <span class="quick-add-badge">+ Quick Add</span>
-      </div>
-      <select id="quickAddBlock" class="form-select quick-select" aria-label="Select Subsystem Block">
-        <!-- Populated by app.js -->
-      </select>
-      <input type="text" id="quickAddTitle" class="form-input quick-title-input"
-        placeholder="Type a new task title and press Enter (e.g., Write SPI driver test for MS5611 barometer)..."
-        required />
-      <input type="text" id="quickAddEpic" class="form-input quick-epic-input" list="quickEpicList"
-        placeholder="Deliverable / Epic (optional)" />
-      <datalist id="quickEpicList"></datalist>
-      <select id="quickAddAssignee" class="form-select quick-select" aria-label="Initial Assignee">
-        <!-- Populated by app.js -->
-      </select>
-      <button type="submit" class="btn btn-primary quick-submit-btn">Add Task</button>
-    </form>
-  </section>
-
   <!-- Summary Metrics Strip -->
   <section class="metrics-strip" id="metricsStrip" aria-label="Project Summary Metrics">
     <!-- Populated by app.js -->
@@ -218,33 +197,14 @@
 
   <!-- Main Workspace Container -->
   <main class="workspace">
-    <!-- VIEW 1: HIERARCHY & SUBSYSTEM BLOCKS VIEW -->
+    <!-- VIEW 1: COMBINED SUBSYSTEMS & SEQUENTIAL FLOW VIEW -->
     <div id="view-hierarchy" class="view-panel active">
       <div id="hierarchyContainer" class="blocks-grid">
         <!-- Populated by app.js -->
       </div>
     </div>
 
-    <!-- VIEW 2: DEPENDENCY FLOWCHART VIEW -->
-    <div id="view-dependencies" class="view-panel">
-      <div class="dependency-legend">
-        <div>
-          <div class="legend-title">Subsystem Dependency Chains & Critical Path</div>
-          <p class="legend-subtitle">Click any task node to inspect predecessors, claim work, or update status.</p>
-        </div>
-        <div class="legend-items">
-          <span class="legend-item"><span class="dot dot-ready"></span> In Progress / Ready</span>
-          <span class="legend-item"><span class="dot dot-testing"></span> Testing & Verification</span>
-          <span class="legend-item"><span class="dot dot-blocked"></span> Blocked / Predecessor Pending</span>
-          <span class="legend-item"><span class="dot dot-done"></span> Completed</span>
-        </div>
-      </div>
-      <div id="dependencyContainer" class="dependency-chains">
-        <!-- Populated by app.js -->
-      </div>
-    </div>
-
-    <!-- VIEW 3: KANBAN BOARD VIEW -->
+    <!-- VIEW 2: KANBAN BOARD VIEW -->
     <div id="view-kanban" class="view-panel">
       <div id="kanbanContainer" class="kanban-board">
         <!-- Populated by app.js -->
@@ -296,6 +256,21 @@
         <button class="modal-close-btn" id="profileModalCloseBtn" aria-label="Close dialog">✕</button>
       </div>
       <div class="modal-body" id="modalProfileBody">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Subsystem Block Creation & Editing Modal -->
+  <div class="modal-backdrop" id="blockModal" style="display: none;" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalBlockTitle">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <h2 id="modalBlockTitle" class="modal-title">Subsystem Block</h2>
+        </div>
+        <button class="modal-close-btn" id="blockModalCloseBtn" aria-label="Close dialog">✕</button>
+      </div>
+      <div class="modal-body" id="modalBlockBody">
         <!-- Rendered dynamically by app.js -->
       </div>
     </div>
