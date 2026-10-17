@@ -1,0 +1,431 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId} (matches request.auth.uid)
+// Fields:
+//   - id: string (required, 1-128 chars) - User unique ID (matches document ID)
+//   - name: string (required, 1-100 chars) - Full name of team member
+//   - handle: string (required, 1-50 chars, regex ^[a-zA-Z0-9_-]+$) - GitHub / callsign handle
+//   - role: string (required, 1-60 chars) - Mission role (Lead, Developer, etc.)
+//   - avatar: string (required, 1-250 chars) - Flight crew emoji badge or avatar URL
+//   - color: string (required, 1-30 chars) - UI accent color hex/css string
+//   - flair: string (required, 0-200 chars) - Subsystem status tagline / bio
+//   - updatedAt: timestamp (optional) - Profile last update timestamp
+//   - createdAt: timestamp (optional, immutable) - Profile creation timestamp
+//
+// Collection: blocks
+// Document ID: {blockId}
+// Fields:
+//   - id: string (required, 1-64 chars) - Block unique ID (matches document ID)
+//   - code: string (required, 1-30 chars) - Block code (e.g. "Block 0", "Block 1")
+//   - name: string (required, 1-120 chars) - Block title
+//   - subtitle: string (required, 0-250 chars) - Subtitle / description
+//   - color: string (required, 1-30 chars) - Block accent hex color
+//   - objective: string (required, 0-500 chars) - Primary milestone objective
+//   - repos: list (required, max 20 items) - Associated GitHub repos
+//   - deliverables: list of strings (required, max 50 items) - Key deliverables
+//   - lead: string (optional, 0-100 chars) - Subsystem lead identifier
+//   - order: int (optional) - Roadmap display order
+//   - createdAt: timestamp (optional, immutable) - Creation timestamp
+//   - updatedAt: timestamp (optional) - Last update timestamp
+//
+// Collection: tasks
+// Document ID: {taskId}
+// Fields:
+//   - id: string (required, 1-64 chars) - Task unique ID (matches document ID)
+//   - title: string (required, 1-300 chars) - Task title
+//   - status: string (required, enum: todo, in-progress, testing, blocked, done, not-started, completed)
+//   - blockId: string (optional, 0-64 chars) - Reference to parent block ID
+//   - epic: string (optional, 0-150 chars) - Epic group
+//   - assignees: list of strings (optional, max 30 items) - Assigned crew IDs/handles
+//   - dependsOn: list of strings (optional, max 30 items) - Predecessor task IDs
+//   - dependencies: list of strings (optional, max 30 items) - Predecessor task IDs (schedule format)
+//   - checklist: list of strings (optional, max 50 items) - Acceptance checklist items
+//   - completedChecks: list of ints (optional, max 50 items) - Indices of completed checklist items
+//   - note: string (optional, 0-2000 chars) - Progress note
+//   - notes: string (optional, 0-2000 chars) - Alternative progress notes
+//   - reactions: string (optional, 0-500 chars) - Crew reaction badges
+//   - tags: list of strings (optional, max 30 items) - Technology tags (LoRa, UKF, Zephyr, etc.)
+//   - category: string (optional, 0-50 chars) - Avionics discipline category
+//   - startDate: string (optional, 0-30 chars) - Scheduled start date
+//   - endDate: string (optional, 0-30 chars) - Scheduled target date
+//   - progress: number (optional, 0-100) - Percent progress
+//   - sizing: number (optional, 0-100) - Effort sizing in member-terms
+//   - priority: string or number (optional, 0-50 chars or 0-100) - Priority rating
+//   - isMilestone: bool (optional) - Milestone flag
+//   - deleted: bool (optional) - Soft-delete flag
+//   - isDeleted: bool (optional) - Alternative soft-delete flag
+//   - createdBy: string (optional, 0-128 chars, immutable) - Creator UID
+//   - createdAt: timestamp (optional, immutable) - Creation timestamp
+//   - updatedAt: timestamp (optional) - Last update timestamp
+//   - updatedBy: string (optional, 0-128 chars) - Editor UID
+//
+// Collection: activity
+// Document ID: {activityId}
+// Fields:
+//   - id: string (required, 1-64 chars) - Activity unique ID (matches document ID)
+//   - userId: string (required, 1-128 chars) - Actor UID (must match request.auth.uid)
+//   - userName: string (required, 1-100 chars) - Actor display name or handle
+//   - action: string (required, 1-50 chars) - Action type (e.g. status_change, claim_task)
+//   - details: string (required, 1-500 chars) - Human-readable log details
+//   - timestamp: timestamp (required, recent within 5m) - Action timestamp
+//   - taskId: string (optional, 0-64 chars) - Associated task ID
+//   - taskTitle: string (optional, 0-300 chars) - Associated task title
+//   - userAvatar: string (optional, 0-250 chars) - Actor avatar emoji/badge
+//   - blockId: string (optional, 0-64 chars) - Associated block ID
+//   - metadata: map (optional, max 10 keys) - Supplementary action metadata
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the resource by ID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate that a timestamp is recent (within 5 minutes)
+    function isRecent(time) {
+      return time is timestamp &&
+             time > request.time - duration.value(5, 'm') &&
+             time <= request.time + duration.value(1, 'm');
+    }
+
+    // Identify bootstrapped USST Leads by UID or verified team email
+    function isBootstrapLead() {
+      return isAuthenticated() && (
+        request.auth.uid in ['david', 'joseph', 'admin', 'lead'] ||
+        (request.auth.token.get('email', '') in ['david@usst.ca', 'joseph@usst.ca', 'lead@usst.ca', 'admin@usst.ca'] &&
+         request.auth.token.get('email_verified', false) == true)
+      );
+    }
+
+    // Check custom claims for administrative or lead roles
+    function isLeadClaim() {
+      return isAuthenticated() && (
+        request.auth.token.get('admin', false) == true ||
+        request.auth.token.get('lead', false) == true ||
+        request.auth.token.get('role', '') in [
+          'admin',
+          'Admin',
+          'lead',
+          'Lead',
+          'Software Mentor / Lead',
+          'Architecture & Lead'
+        ]
+      );
+    }
+
+    // Check Firestore user document for administrative or lead roles
+    function isLeadDoc() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in [
+               'admin',
+               'Admin',
+               'lead',
+               'Lead',
+               'Software Mentor / Lead',
+               'Architecture & Lead'
+             ];
+    }
+
+    // Comprehensive Lead check: bootstrap UID/email OR token custom claims OR user doc
+    function isLead() {
+      return isBootstrapLead() || isLeadClaim() || isLeadDoc();
+    }
+
+    // Check custom claims for developer roles
+    function isDeveloperClaim() {
+      return isAuthenticated() && (
+        request.auth.token.get('role', '') in [
+          'developer',
+          'Developer',
+          'dev',
+          'Embedded RTOS Dev',
+          'Embedded Dev',
+          'Flight Software Dev',
+          'Algorithms & GNC',
+          'Ground Station Dev'
+        ]
+      );
+    }
+
+    // Check Firestore user document for developer roles
+    function isDeveloperDoc() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in [
+               'developer',
+               'Developer',
+               'dev',
+               'Embedded RTOS Dev',
+               'Embedded Dev',
+               'Flight Software Dev',
+               'Algorithms & GNC',
+               'Ground Station Dev'
+             ];
+    }
+
+    // Check if the user is explicitly flagged as a read-only guest
+    function isGuestUser() {
+      return (
+        request.auth.token.get('role', '') in ['guest', 'Guest (Read Only)'] ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['guest', 'Guest (Read Only)'])
+      );
+    }
+
+    // Check if user is an authenticated developer / active crew member
+    function isDeveloper() {
+      return isAuthenticated() && !isGuestUser() && (
+        isLead() ||
+        isDeveloperClaim() ||
+        isDeveloperDoc() ||
+        true // Any authenticated non-guest member has active crew developer permissions
+      );
+    }
+
+    // Privileged roles that non-leads are strictly forbidden from self-assigning
+    function isPrivilegedRole(role) {
+      return role in [
+        'lead',
+        'Lead',
+        'admin',
+        'Admin',
+        'lead/admin',
+        'Software Mentor / Lead',
+        'Architecture & Lead',
+        'System Admin',
+        'Mission Director'
+      ];
+    }
+
+    // Check if user is attempting to soft-delete a task without lead authority
+    function isSoftDeleteAttempt() {
+      return (('deleted' in request.resource.data && request.resource.data.deleted == true) &&
+              (!('deleted' in resource.data) || resource.data.deleted == false)) ||
+             (('isDeleted' in request.resource.data && request.resource.data.isDeleted == true) &&
+              (!('isDeleted' in resource.data) || resource.data.isDeleted == false));
+    }
+
+    // Ensure immutable fields on tasks remain unchanged
+    function areTaskImmutablesUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+             (!('createdAt' in resource.data) ||
+              ('createdAt' in request.resource.data && request.resource.data.createdAt == resource.data.createdAt)) &&
+             (!('createdBy' in resource.data) ||
+              ('createdBy' in request.resource.data && request.resource.data.createdBy == resource.data.createdBy));
+    }
+
+    // Ensure immutable fields on user profiles remain unchanged
+    function areUserImmutablesUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+             (!('createdAt' in resource.data) ||
+              ('createdAt' in request.resource.data && request.resource.data.createdAt == resource.data.createdAt));
+    }
+
+    // Ensure immutable fields on blocks remain unchanged
+    function areBlockImmutablesUnchanged() {
+      return request.resource.data.id == resource.data.id &&
+             (!('createdAt' in resource.data) ||
+              ('createdAt' in request.resource.data && request.resource.data.createdAt == resource.data.createdAt));
+    }
+
+    // ===============================================================
+    // Domain Validators (Enforced on BOTH create and update)
+    // ===============================================================
+
+    // Validates a user profile document
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'handle', 'role', 'avatar', 'color', 'flair']) &&
+             data.keys().hasOnly(['id', 'name', 'handle', 'role', 'avatar', 'color', 'flair', 'updatedAt', 'createdAt']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.handle is string && data.handle.size() >= 1 && data.handle.size() <= 50 &&
+             data.handle.matches('^[a-zA-Z0-9_-]+$') &&
+             data.role is string && data.role.size() >= 1 && data.role.size() <= 60 &&
+             data.avatar is string && data.avatar.size() >= 1 && data.avatar.size() <= 250 &&
+             data.color is string && data.color.size() >= 1 && data.color.size() <= 30 &&
+             data.flair is string && data.flair.size() <= 200 &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Validates a block (subsystem/milestone module) document
+    function isValidBlock(data) {
+      return data.keys().hasAll(['id', 'code', 'name', 'subtitle', 'color', 'objective', 'repos', 'deliverables']) &&
+             data.keys().hasOnly(['id', 'code', 'name', 'subtitle', 'color', 'objective', 'repos', 'deliverables', 'lead', 'order', 'createdAt', 'updatedAt']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 64 &&
+             data.code is string && data.code.size() >= 1 && data.code.size() <= 30 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+             data.subtitle is string && data.subtitle.size() <= 250 &&
+             data.color is string && data.color.size() >= 1 && data.color.size() <= 30 &&
+             data.objective is string && data.objective.size() <= 500 &&
+             data.repos is list && data.repos.size() <= 20 &&
+             data.deliverables is list && data.deliverables.size() <= 50 &&
+             (!('lead' in data) || (data.lead is string && data.lead.size() <= 100)) &&
+             (!('order' in data) || data.order is int) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // Validates a task document
+    function isValidTask(data) {
+      return data.keys().hasAll(['id', 'title', 'status']) &&
+             data.keys().hasOnly([
+               'id', 'blockId', 'title', 'epic', 'status', 'assignees', 'dependsOn',
+               'dependencies', 'checklist', 'completedChecks', 'note', 'notes',
+               'reactions', 'tags', 'category', 'startDate', 'endDate', 'progress',
+               'sizing', 'priority', 'isMilestone', 'deleted', 'isDeleted',
+               'createdBy', 'createdAt', 'updatedAt', 'updatedBy'
+             ]) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 64 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+             data.status is string && data.status in ['todo', 'in-progress', 'testing', 'blocked', 'done', 'not-started', 'completed'] &&
+             (!('blockId' in data) || (data.blockId is string && data.blockId.size() <= 64)) &&
+             (!('epic' in data) || (data.epic is string && data.epic.size() <= 150)) &&
+             (!('assignees' in data) || (data.assignees is list && data.assignees.size() <= 30)) &&
+             (!('dependsOn' in data) || (data.dependsOn is list && data.dependsOn.size() <= 30)) &&
+             (!('dependencies' in data) || (data.dependencies is list && data.dependencies.size() <= 30)) &&
+             (!('checklist' in data) || (data.checklist is list && data.checklist.size() <= 50)) &&
+             (!('completedChecks' in data) || (data.completedChecks is list && data.completedChecks.size() <= 50)) &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 2000)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+             (!('reactions' in data) || (data.reactions is string && data.reactions.size() <= 500)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 30)) &&
+             (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+             (!('startDate' in data) || (data.startDate is string && data.startDate.size() <= 30)) &&
+             (!('endDate' in data) || (data.endDate is string && data.endDate.size() <= 30)) &&
+             (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
+             (!('sizing' in data) || (data.sizing is number && data.sizing >= 0 && data.sizing <= 100)) &&
+             (!('priority' in data) ||
+              (data.priority is string && data.priority.size() <= 50) ||
+              (data.priority is number && data.priority >= 0 && data.priority <= 100)) &&
+             (!('isMilestone' in data) || data.isMilestone is bool) &&
+             (!('deleted' in data) || data.deleted is bool) &&
+             (!('isDeleted' in data) || data.isDeleted is bool) &&
+             (!('createdBy' in data) || (data.createdBy is string && data.createdBy.size() <= 128)) &&
+             (!('updatedBy' in data) || (data.updatedBy is string && data.updatedBy.size() <= 128)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Validates an immutable activity audit log document
+    function isValidActivity(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'action', 'details', 'timestamp']) &&
+             data.keys().hasOnly(['id', 'userId', 'userName', 'action', 'details', 'timestamp', 'taskId', 'taskTitle', 'userAvatar', 'blockId', 'metadata']) &&
+             data.id is string && data.id.size() >= 1 && data.id.size() <= 64 &&
+             data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 100 &&
+             data.action is string && data.action.size() >= 1 && data.action.size() <= 50 &&
+             data.details is string && data.details.size() >= 1 && data.details.size() <= 500 &&
+             data.timestamp is timestamp && isRecent(data.timestamp) &&
+             (!('taskId' in data) || (data.taskId is string && data.taskId.size() <= 64)) &&
+             (!('taskTitle' in data) || (data.taskTitle is string && data.taskTitle.size() <= 300)) &&
+             (!('userAvatar' in data) || (data.userAvatar is string && data.userAvatar.size() <= 250)) &&
+             (!('blockId' in data) || (data.blockId is string && data.blockId.size() <= 64)) &&
+             (!('metadata' in data) || (data.metadata is map && data.metadata.keys().size() <= 10));
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Tasks Collection:
+    // - Public read for team visibility & guests
+    // - Create/Update for authenticated developers and leads
+    // - Non-leads cannot soft-delete tasks or mutate immutable metadata
+    // - Hard delete is restricted exclusively to Leads/Admins
+    match /tasks/{taskId} {
+      allow read: if true;
+
+      allow create: if isAuthenticated() &&
+                       (isLead() || isDeveloper()) &&
+                       isValidTask(request.resource.data) &&
+                       request.resource.data.id == taskId &&
+                       (!('createdBy' in request.resource.data) || request.resource.data.createdBy == request.auth.uid || isLead()) &&
+                       ((!('deleted' in request.resource.data) && !('isDeleted' in request.resource.data)) || isLead());
+
+      allow update: if isAuthenticated() &&
+                       isValidTask(request.resource.data) &&
+                       areTaskImmutablesUnchanged() &&
+                       (isLead() || (isDeveloper() && !isSoftDeleteAttempt()));
+
+      allow delete: if isLead();
+    }
+
+    // Blocks Collection:
+    // - Public read for project architecture visibility
+    // - Create, Update, Delete restricted exclusively to Leads/Admins
+    match /blocks/{blockId} {
+      allow read: if true;
+
+      allow create: if isLead() &&
+                       isValidBlock(request.resource.data) &&
+                       request.resource.data.id == blockId;
+
+      allow update: if isLead() &&
+                       isValidBlock(request.resource.data) &&
+                       areBlockImmutablesUnchanged();
+
+      allow delete: if isLead();
+    }
+
+    // Users Collection:
+    // - Public read for team roster, avatars, and flight badges
+    // - Authenticated users manage their own profile (avatar, flair, handle)
+    // - Strict privilege escalation defense: only leads can assign or modify roles
+    // - Delete restricted exclusively to Leads/Admins
+    match /users/{userId} {
+      allow read: if true;
+
+      allow create: if isAuthenticated() &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.id == userId &&
+                       ((isOwner(userId) && !isPrivilegedRole(request.resource.data.role)) || isLead());
+
+      allow update: if isAuthenticated() &&
+                       isValidUser(request.resource.data) &&
+                       areUserImmutablesUnchanged() &&
+                       ((isOwner(userId) && request.resource.data.role == resource.data.role) || isLead());
+
+      allow delete: if isLead();
+    }
+
+    // Activity Collection:
+    // - Public read for team activity stream
+    // - Created by authenticated developers or leads logging actions
+    // - Strictly append-only / immutable (no updates or deletes allowed)
+    match /activity/{activityId} {
+      allow read: if true;
+
+      allow create: if isAuthenticated() &&
+                       (isLead() || isDeveloper()) &&
+                       isValidActivity(request.resource.data) &&
+                       request.resource.data.id == activityId;
+
+      allow update, delete: if false;
+    }
+
+    // Default Deny Root
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

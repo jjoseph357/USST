@@ -6,3 +6,7 @@ dist/
 
 # Large video files (root scratch only, public/videos/ is tracked via Git LFS)
 /videos/
+
+# Temporary uploaded drop files
+gemini-code-*
+
