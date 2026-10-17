@@ -2049,7 +2049,7 @@ function openProfileModal() {
                 <div class="muted-text" style="font-size:0.72rem;">${m.flair}</div>
               </div>
             </div>
-            <span class="status-badge status-${m.id === 'joseph' \vert{}\vert{} m.id === 'david' ? 'in-progress' : 'todo'}">${m.id === 'joseph' || m.id === 'david' ? 'Lead' : 'Developer'}</span>
+            <span class="status-badge status-${m.id === 'joseph' || m.id === 'david' ? 'in-progress' : 'todo'}">${m.id === 'joseph' || m.id === 'david' ? 'Lead' : 'Developer'}</span>
           </div>
         `).join('')}
         <div class="checklist-item-interactive ${currentUserId === 'guest' ? 'active-profile-row' : ''}" 
