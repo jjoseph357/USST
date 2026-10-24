@@ -1,282 +1,45 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>USST Rocketry · Mission Control</title>
+  <meta name="color-scheme" content="light dark" />
+  <meta name="description" content="USST Rocketry flight software schedule: tasks, dependencies and progress toward Launch Canada 2027." />
+  <title>USST Flight Software</title>
   <link rel="icon" type="image/webp" href="/USST_LogoClear-BIzNgCnB.webp" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    rel="stylesheet">
 </head>
 
 <body>
-  <!-- Top Navigation & Auth Bar -->
-  <header class="topbar">
-    <div class="brand">
-      <div class="brand-logo" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
-          <path
-            d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
-          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
-          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
-        </svg>
-      </div>
-      <div>
-        <div class="brand-title-row">
-          <h1>USST Rocketry</h1>
-          <span class="mission-badge">FLIGHT SW HUB</span>
-        </div>
-        <p class="brand-subtitle">Zephyr RTOS · Apogee UKF · Simulator · RF Comms · Ground Station · Peripherals</p>
-      </div>
-    </div>
+  <a class="skip-link" href="#view">Skip to content</a>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#/overview" aria-label="USST Flight Software home">
+        <img src="/USST_LogoClear-BIzNgCnB.webp" alt="" width="28" height="28" />
+        <span class="brand-text"><strong>USST Rocketry</strong><span>Flight Software</span></span>
+      </a>
+      <div class="topbar-right" id="headerRight"></div>
+    </header>
 
-    <div class="topbar-actions">
-      <!-- Cloud Firestore Sync Status -->
-      <div class="auth-pill telemetry-pill" id="firestoreStatusPill"
-        title="Connected to Google Cloud Firestore (usst-rocketry-hub)">
-        <span class="status-dot verified"></span>
-        <div class="auth-meta">
-          <span class="auth-name">Cloud Sync</span>
-          <span class="auth-role" id="firestoreStatusText">Synced · usst-rocketry-hub</span>
-        </div>
-      </div>
+    <aside class="sidebar" id="sidebar" aria-label="Navigation and filters"></aside>
 
-      <!-- Anti-Griefing Account / Role Status -->
-      <div class="auth-pill" id="authStatusPill" role="button" tabindex="0"
-        title="Click to switch active developer, view audit log, or customize avatar">
-        <span class="status-dot verified"></span>
-        <span id="activeUserAvatar" class="avatar-mini">🚀</span>
-        <div class="auth-meta">
-          <span id="activeUserName" class="auth-name">Joseph (Lead)</span>
-          <span id="activeUserRole" class="auth-role">Full Access · GitHub Verified</span>
-        </div>
-        <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </div>
-
-      <!-- Theme Toggle -->
-      <button class="btn btn-ghost btn-icon" id="themeToggleBtn" title="Toggle Light / Dark theme"
-        aria-label="Toggle color theme">
-        <svg id="themeIconSun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-        <svg id="themeIconMoon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      </button>
-
-      <button class="btn btn-ghost" id="exportJsonBtn" title="Download tasks as JSON backup">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-        Export
-      </button>
-
-      <button class="btn btn-secondary" id="addBlockBtn" title="Create a new engineering subsystem block">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <line x1="12" y1="8" x2="12" y2="16" />
-          <line x1="8" y1="12" x2="16" y2="12" />
-        </svg>
-        New Block
-      </button>
-
-      <button class="btn btn-primary" id="newTaskBtn" title="Create a new task (Shortcut: N)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        New Task
-      </button>
-    </div>
-  </header>
-
-  <!-- Team Roster Bar -->
-  <section class="roster-bar" aria-label="Development Crew Filter">
-    <div class="roster-label">
-      <span>CREW ROSTER</span>
-      <small>Click to filter assignee</small>
-    </div>
-    <div class="roster-list" id="teamRosterList">
-      <!-- Populated by app.js -->
-    </div>
-  </section>
-
-  <!-- Primary Controls: View Switcher, Search, Filters -->
-  <section class="controls-bar">
-    <div class="controls-left">
-      <div class="view-tabs" id="viewTabs" role="tablist" aria-label="Workspace Views">
-        <button class="view-tab active" data-view="hierarchy" role="tab" aria-selected="true" title="Unified Subsystem Blocks & Sequential Dependency Flowchart">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="14" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-          </svg>
-          Subsystems &amp; Flow
-        </button>
-        <button class="view-tab" data-view="kanban" role="tab" aria-selected="false" title="Kanban Board View">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="5" height="18" rx="1" />
-            <rect x="10" y="3" width="5" height="12" rx="1" />
-            <rect x="17" y="3" width="5" height="15" rx="1" />
-          </svg>
-          Kanban Board
-        </button>
-      </div>
-
-      <!-- Quick Focus Presets -->
-      <div class="preset-pills" id="quickFilterPresets" role="group" aria-label="Quick task filters">
-        <button type="button" class="preset-pill active" data-preset="all">All Tasks</button>
-        <button type="button" class="preset-pill" data-preset="mine">Assigned to Me</button>
-        <button type="button" class="preset-pill" data-preset="pickup">Ready to Pick Up</button>
-        <button type="button" class="preset-pill" data-preset="unblocked">Unblocked</button>
-        <button type="button" class="preset-pill" data-preset="blocked">Blocked / HW</button>
-      </div>
-    </div>
-
-    <div class="filters-group">
-      <div class="search-box">
-        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input type="text" id="searchInput"
-          placeholder="Search tasks, repos, tags (Press / to focus)..." />
-      </div>
-
-      <select id="blockFilter" class="filter-select" aria-label="Filter by subsystem block">
-        <option value="all">All Blocks (0–6)</option>
-      </select>
-
-      <select id="statusFilter" class="filter-select" aria-label="Filter by task status">
-        <option value="all">All Statuses</option>
-        <option value="unblocked">Ready / Unblocked Only</option>
-        <option value="blocked">Blocked / Waiting on HW</option>
-        <option value="in-progress">In Progress</option>
-        <option value="testing">Testing & Verification</option>
-        <option value="todo">Backlog / To Do</option>
-        <option value="done">Completed</option>
-      </select>
-
-      <button class="btn btn-ghost" id="resetFiltersBtn">Reset</button>
-    </div>
-  </section>
-
-  <!-- Summary Metrics Strip -->
-  <section class="metrics-strip" id="metricsStrip" aria-label="Project Summary Metrics">
-    <!-- Populated by app.js -->
-  </section>
-
-  <!-- Main Workspace Container -->
-  <main class="workspace">
-    <!-- VIEW 1: COMBINED SUBSYSTEMS & SEQUENTIAL FLOW VIEW -->
-    <div id="view-hierarchy" class="view-panel active">
-      <div id="hierarchyContainer" class="blocks-grid">
-        <!-- Populated by app.js -->
-      </div>
-    </div>
-
-    <!-- VIEW 2: KANBAN BOARD VIEW -->
-    <div id="view-kanban" class="view-panel">
-      <div id="kanbanContainer" class="kanban-board">
-        <!-- Populated by app.js -->
-      </div>
-    </div>
-  </main>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-meta">
-      <strong>USST Rocketry Software Team</strong>
-      <span class="footer-sep">·</span>
-      <span>GitHub Pages Static Deployment</span>
-      <span class="footer-sep">·</span>
-      <span>Role-Gated Anti-Griefing Architecture</span>
-    </div>
-    <div class="footer-links">
-      <a href="https://github.com/USSTRocketry/Maidstone" target="_blank" rel="noopener">Maidstone</a>
-      <a href="https://github.com/USSTRocketry/Carrot-River" target="_blank" rel="noopener">Carrot-River</a>
-      <a href="https://github.com/USSTRocketry/Turtleford" target="_blank" rel="noopener">Turtleford</a>
-      <a href="https://github.com/USSTRocketry/Radisson" target="_blank" rel="noopener">Radisson</a>
-      <a href="https://github.com/USSTRocketry/Houston" target="_blank" rel="noopener">Houston</a>
-    </div>
-  </footer>
-
-  <!-- Task Detail & Creation Modal -->
-  <div class="modal-backdrop" id="taskDetailModal" style="display: none;" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTaskId">
-      <div class="modal-header">
-        <div class="modal-title-row">
-          <span class="modal-task-id" id="modalTaskId">B1-01</span>
-          <span class="modal-block-badge" id="modalTaskBlock">Block 1 · Zephyr RTOS</span>
-        </div>
-        <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close dialog">✕</button>
-      </div>
-      <div class="modal-body" id="modalTaskBody">
-        <!-- Rendered dynamically by app.js -->
-      </div>
-    </div>
+    <main class="main">
+      <div class="banner" id="banner" hidden></div>
+      <div class="filterbar" id="filterbar" hidden></div>
+      <div class="view" id="view" tabindex="-1"></div>
+    </main>
   </div>
 
-  <!-- Profile & Anti-Griefing RBAC Switcher Modal -->
-  <div class="modal-backdrop" id="profileModal" style="display: none;" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalProfileTitle">
-      <div class="modal-header">
-        <div class="modal-title-row">
-          <h2 id="modalProfileTitle" class="modal-title">Crew Identity, Customization & Audit Log</h2>
-        </div>
-        <button class="modal-close-btn" id="profileModalCloseBtn" aria-label="Close dialog">✕</button>
-      </div>
-      <div class="modal-body" id="modalProfileBody">
-        <!-- Rendered dynamically by app.js -->
-      </div>
-    </div>
-  </div>
+  <div class="scrim" id="scrim" hidden></div>
+  <aside class="drawer" id="drawer" hidden aria-label="Task details"></aside>
+  <dialog class="dialog" id="dialog"></dialog>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
-  <!-- Subsystem Block Creation & Editing Modal -->
-  <div class="modal-backdrop" id="blockModal" style="display: none;" aria-hidden="true">
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalBlockTitle">
-      <div class="modal-header">
-        <div class="modal-title-row">
-          <h2 id="modalBlockTitle" class="modal-title">Subsystem Block</h2>
-        </div>
-        <button class="modal-close-btn" id="blockModalCloseBtn" aria-label="Close dialog">✕</button>
-      </div>
-      <div class="modal-body" id="modalBlockBody">
-        <!-- Rendered dynamically by app.js -->
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./scheduler/main.ts"></script>
 </body>
 
 </html>

@@ -11,7 +11,6 @@ import {
   getStatusLabel,
   filterTasks,
   activeFilters,
-  populateBlockFilter,
   updateTaskStatus,
   claimTask,
   toggleChecklistItem,
@@ -31,9 +30,8 @@ import {
   updateBlock,
   connectTasks,
   disconnectTasks,
-  extractBlockFlowLanes,
-  type FlowLane,
-  type Task,
+  applyRemoteTasks,
+  restoreTask,
   FUN_AVATAR_PACK,
   FUN_COLOR_PALETTE
 } from '../../app.js';
@@ -336,39 +334,6 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       activeFilters.search = 'Zephyr RTOS';
       const zephyrResults = filterTasks();
       expect(zephyrResults.length).toBeGreaterThan(0);
-    });
-
-    it('populates block filter options safely and idempotently', () => {
-      // In Node environment without DOM, calling populateBlockFilter should be safe and not throw
-      expect(() => populateBlockFilter()).not.toThrow();
-
-      // Mock select DOM element
-      const mockChildren: { value: string; textContent: string }[] = [];
-      const mockSelect = {
-        innerHTML: '',
-        value: '',
-        appendChild: (child: { value: string; textContent: string }) => mockChildren.push(child)
-      };
-
-      // Temporarily mock document.getElementById and document.createElement
-      (globalThis as unknown as { document: { getElementById: (id: string) => unknown; createElement: (tag: string) => unknown } }).document = {
-        getElementById: (id: string) => (id === 'blockFilter' ? mockSelect : null),
-        createElement: () => ({ value: '', textContent: '' })
-      };
-
-      try {
-        populateBlockFilter();
-        // 1 "all" option + 7 blocks = 8 options
-        expect(mockChildren.length).toBe(7);
-        expect(mockSelect.innerHTML).toContain('All Blocks');
-
-        // Calling a second time resets and does not duplicate
-        mockChildren.length = 0;
-        populateBlockFilter();
-        expect(mockChildren.length).toBe(7);
-      } finally {
-        delete (globalThis as unknown as { document?: unknown }).document;
-      }
     });
   });
 
@@ -685,29 +650,56 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       delete taskMap[taskA.id];
     });
 
-    it('extracts split dependency flow lanes and separates independent tasks', () => {
-      const block1Tasks = TASKS.filter(t => t.blockId === 'block-1');
-      const { flowLanes, standaloneTasks } = extractBlockFlowLanes(block1Tasks);
+    it('takes every shared field from Firestore and drops remotely deleted tasks', () => {
+      const local = createNewTask({ blockId: 'block-4', title: 'Remote merge probe' });
+      applyRemoteTasks([
+        {
+          type: 'modified',
+          task: { ...local, title: 'Renamed elsewhere', dependsOn: ['B4-01'], endDate: '2027-03-01', status: 'testing' }
+        }
+      ]);
+      expect(taskMap[local.id].title).toBe('Renamed elsewhere');
+      expect(taskMap[local.id].dependsOn).toEqual(['B4-01']);
+      expect(taskMap[local.id].endDate).toBe('2027-03-01');
+      expect(taskMap[local.id].status).toBe('testing');
 
-      // Block 1 should have multiple lanes because B1-03 and B1-08 split
-      expect(flowLanes.length).toBeGreaterThanOrEqual(3);
+      applyRemoteTasks([{ type: 'removed', task: { id: local.id } }]);
+      expect(taskMap[local.id]).toBeUndefined();
+      expect(TASKS.some(t => t.id === local.id)).toBe(false);
+    });
 
-      // Primary lane starting at root B1-01
-      const rootLane = flowLanes.find((l: FlowLane) => l.splitFrom === null);
-      expect(rootLane).toBeDefined();
-      expect(rootLane?.tasks[0].id).toBe('B1-01');
+    it('normalizes malformed remote records instead of crashing the board', () => {
+      applyRemoteTasks([{ type: 'added', task: { id: 'ZZ-01', title: 'Legacy', status: 'completed' as never, dependencies: ['B0-01'] } as never }]);
+      const t = taskMap['ZZ-01'];
+      expect(t.status).toBe('done');
+      expect(t.dependsOn).toEqual(['B0-01']);
+      expect(t.assignees).toEqual([]);
+      applyRemoteTasks([{ type: 'removed', task: { id: 'ZZ-01' } }]);
+    });
 
-      // Split lanes should reference their splitFrom parent
-      const splitLanes = flowLanes.filter((l: FlowLane) => l.splitFrom !== null);
-      expect(splitLanes.length).toBeGreaterThanOrEqual(2);
-      const splitParents = splitLanes.map((l: FlowLane) => l.splitFrom);
-      expect(splitParents).toContain('B1-03');
-      expect(splitParents).toContain('B1-08');
+    it('restores a deleted task together with the links that pointed at it', () => {
+      setActiveUser('joseph');
+      const parent = createNewTask({ blockId: 'block-3', title: 'Undo parent' });
+      const child = createNewTask({ blockId: 'block-3', title: 'Undo child', dependsOn: [parent.id] });
 
-      // Standalone tasks have no dependencies and no dependents in this block
-      const standaloneIds = standaloneTasks.map((t: Task) => t.id);
-      expect(standaloneIds).toContain('B1-11');
-      expect(standaloneIds).toContain('B1-12');
+      const removed = deleteTask(parent.id);
+      expect(removed).not.toBeNull();
+      expect(child.dependsOn).not.toContain(parent.id);
+
+      restoreTask(removed!);
+      expect(taskMap[parent.id]).toBeDefined();
+      expect(child.dependsOn).toContain(parent.id);
+
+      deleteTask(child.id);
+      deleteTask(parent.id);
+    });
+
+    it('stores only well-formed target dates', () => {
+      const t = createNewTask({ blockId: 'block-5', title: 'Dated', endDate: '2027-05-01' });
+      expect(t.endDate).toBe('2027-05-01');
+      updateTaskDetails(t.id, { endDate: 'next tuesday' });
+      expect(t.endDate).toBe('');
+      deleteTask(t.id);
     });
 
     it('connects and disconnects tasks with instant audit logging and cycle rejection', () => {

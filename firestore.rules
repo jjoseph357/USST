@@ -149,56 +149,9 @@ service cloud.firestore {
       return isBootstrapLead() || isLeadClaim() || isLeadDoc();
     }
 
-    // Check custom claims for developer roles
-    function isDeveloperClaim() {
-      return isAuthenticated() && (
-        request.auth.token.get('role', '') in [
-          'developer',
-          'Developer',
-          'dev',
-          'Embedded RTOS Dev',
-          'Embedded Dev',
-          'Flight Software Dev',
-          'Algorithms & GNC',
-          'Ground Station Dev'
-        ]
-      );
-    }
 
-    // Check Firestore user document for developer roles
-    function isDeveloperDoc() {
-      return isAuthenticated() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in [
-               'developer',
-               'Developer',
-               'dev',
-               'Embedded RTOS Dev',
-               'Embedded Dev',
-               'Flight Software Dev',
-               'Algorithms & GNC',
-               'Ground Station Dev'
-             ];
-    }
 
-    // Check if the user is explicitly flagged as a read-only guest
-    function isGuestUser() {
-      return (
-        request.auth.token.get('role', '') in ['guest', 'Guest (Read Only)'] ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['guest', 'Guest (Read Only)'])
-      );
-    }
 
-    // Check if user is an authenticated developer / active crew member
-    function isDeveloper() {
-      return isAuthenticated() && !isGuestUser() && (
-        isLead() ||
-        isDeveloperClaim() ||
-        isDeveloperDoc() ||
-        true // Any authenticated non-guest member has active crew developer permissions
-      );
-    }
 
     // Privileged roles that non-leads are strictly forbidden from self-assigning
     function isPrivilegedRole(role) {
@@ -215,13 +168,6 @@ service cloud.firestore {
       ];
     }
 
-    // Check if user is attempting to soft-delete a task without lead authority
-    function isSoftDeleteAttempt() {
-      return (('deleted' in request.resource.data && request.resource.data.deleted == true) &&
-              (!('deleted' in resource.data) || resource.data.deleted == false)) ||
-             (('isDeleted' in request.resource.data && request.resource.data.isDeleted == true) &&
-              (!('isDeleted' in resource.data) || resource.data.isDeleted == false));
-    }
 
     // Ensure immutable fields on tasks remain unchanged
     function areTaskImmutablesUnchanged() {
@@ -348,43 +294,37 @@ service cloud.firestore {
     // ===============================================================
 
     // Tasks Collection:
-    // - Public read for team visibility & guests
-    // - Create/Update for authenticated developers and leads
-    // - Non-leads cannot soft-delete tasks or mutate immutable metadata
-    // - Hard delete is restricted exclusively to Leads/Admins
+    // - Public read so the board is visible without signing in
+    // - Any signed-in user can create, edit and delete tasks
     match /tasks/{taskId} {
       allow read: if true;
 
       allow create: if isAuthenticated() &&
-                       (isLead() || isDeveloper()) &&
                        isValidTask(request.resource.data) &&
-                       request.resource.data.id == taskId &&
-                       (!('createdBy' in request.resource.data) || request.resource.data.createdBy == request.auth.uid || isLead()) &&
-                       ((!('deleted' in request.resource.data) && !('isDeleted' in request.resource.data)) || isLead());
+                       request.resource.data.id == taskId;
 
       allow update: if isAuthenticated() &&
                        isValidTask(request.resource.data) &&
-                       areTaskImmutablesUnchanged() &&
-                       (isLead() || (isDeveloper() && !isSoftDeleteAttempt()));
+                       areTaskImmutablesUnchanged();
 
-      allow delete: if isLead();
+      allow delete: if isAuthenticated();
     }
 
     // Blocks Collection:
     // - Public read for project architecture visibility
-    // - Create, Update, Delete restricted exclusively to Leads/Admins
+    // - Any signed-in user can create, edit and delete subsystems
     match /blocks/{blockId} {
       allow read: if true;
 
-      allow create: if isLead() &&
+      allow create: if isAuthenticated() &&
                        isValidBlock(request.resource.data) &&
                        request.resource.data.id == blockId;
 
-      allow update: if isLead() &&
+      allow update: if isAuthenticated() &&
                        isValidBlock(request.resource.data) &&
                        areBlockImmutablesUnchanged();
 
-      allow delete: if isLead();
+      allow delete: if isAuthenticated();
     }
 
     // Users Collection:
@@ -416,7 +356,6 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if isAuthenticated() &&
-                       (isLead() || isDeveloper()) &&
                        isValidActivity(request.resource.data) &&
                        request.resource.data.id == activityId;
 

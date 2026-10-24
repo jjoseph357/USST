@@ -1,60 +1,52 @@
-# USST Avionics
+# USST Flight Software Schedule
 
-Web platform for the University of Saskatchewan Space Team (USST) Avionics competing in Launch Canada 2027 (August 10–16, 2027).
+Task scheduler for the University of Saskatchewan Space Team (USST) Rocketry flight software crew, working toward Launch Canada 2027 (August 10–16, 2027). It deploys to GitHub Pages and shares data through Cloud Firestore.
 
-## What the site is for
+## Views
 
-The platform has two distinct roles:
+| View | Key | Use it to |
+| --- | --- | --- |
+| Overview | `1` | See the launch countdown, what is ready to start (ranked by how much work it unblocks), bottlenecks, the critical path, hardware waits, and your own tasks. |
+| Dependency map | `2` | See every task as a graph: one swimlane per subsystem, one column per dependency depth. Hover a task to trace what it waits on and what waits on it. Drag a task's right edge onto another task to link them. Click a line to unlink. |
+| Board | `3` | Move tasks between statuses by dragging cards. |
+| List | `4` | Scan and update status per subsystem in a table. |
 
-### 1. Recruitment events (booth display)
-- **Launch Canada flight footage:** Synchronized video theater with on-board rocket camera (starts automatically at 0:40 solid motor ignition), official competition livestream, and ground optical tracking.
-- **Interactive role matcher:** Filter by major (Electrical, Computer Engineering, Computer Science, Physics/Math, Mechanical) or year of study to see starter mini-projects.
-- **Architecture shift:** Overview of transitioning from commercial Teensy breakout boards to a custom multi-layer STM32 PCB, deterministic Zephyr RTOS, Unscented Kalman Filtering (UKF), and 915 MHz LoRa downlinks.
-- **Starter mini-projects:** Guided onboarding projects designed for first and second year students with division mentor support.
-- **Meeting information:** Room 2C01 (Classroom) in the Engineering Building on Saturdays at 12:00 PM, plus mobile QR code for Discord.
-- **Booth mode:** Press `P` for full-screen kiosk display mode.
+Click any task to open its side panel. Every field saves as you edit. The URL updates to `#/<view>?task=<ID>`, so you can paste a link to a task in Discord.
 
-### 2. Work sessions (engineering planning)
-- **7-phase mission roadmap:** Formal review gates (IDR, PDR, CDR, FRR) aligned with the university academic calendar and exam blackout periods.
-- **Technical backlog:** 22 tasks sized in member-terms (11.4 hardware + 7.6 software = 19.0 total member-terms) with discipline and priority filters.
-- **Capacity model:** Calculator estimating active members required per academic term to hit flight readiness.
-- **Task inspector:** Modal view with dependencies, deliverables, and assigned leads.
+Other shortcuts: `/` focuses search, `N` creates a task, `Esc` closes the panel.
 
-## The 6 core subsystems
+## Accounts and sync
 
-1. **Custom flight computer hardware:** Custom high-speed STM32 MCU/MPU PCB, impedance-matched differential routing, power rail bring-up.
-2. **Switch and power architecture:** Dual USB/battery power path, supercapacitor buffer for pyrotechnic charges, latching power circuits.
-3. **Flight software, navigation, and RTOS:** Zephyr RTOS migration, Unscented Kalman Filter state estimation, hardware-in-the-loop (HITL) simulator, watchdog timers.
-4. **RF communications and telemetry:** LoRa SX1262 915 MHz downlinks, high-dynamic GPS, and payload camera triggers.
-5. **Mission ground station and telemetry web:** Dedicated ground station receiver board and browser-based live telemetry dashboard.
-6. **Airframe and mechanical integration:** 3D printed avionics bay sled stack, vacuum chamber tests, vibration testing, and vehicle wire harnessing.
+- **Who are you?** picks your seat on the crew. It drives "Assign me", "Mine", and "Your tasks". It is stored per browser and is not a login.
+- **Sign in with Google** lets your changes save to Firestore for everyone. Signed-out visitors still see live data, but their edits stay in their own browser.
+- The sync indicator in the header reports what actually happened: `Live · not signed in`, `Saving…`, `Saved`, or `Not saved` with the Firestore error.
+
+### Firebase setup
+
+Google sign-in is enabled for project `usst-rocketry-hub`, and `jjoseph357.github.io` is an authorized domain. If the site moves to another domain, add it in **Authentication > Settings > Authorized domains**.
+
+`firestore.rules` lets anyone read the board and any signed-in Google account create, edit, and delete tasks and subsystems. Deploy rule changes with `firebase deploy --only firestore:rules`.
+
+## Code layout
+
+| Path | Owns |
+| --- | --- |
+| `app.js` | Crew, subsystems, tasks, filters, and every mutation. No DOM access, so tests import it directly. |
+| `firebase.js` | Firestore listeners and writes, Google sign-in, and the sync status. |
+| `scheduler/graph.ts` | Pure dependency analysis: depth, impact, critical path, cycle check, and map layout. |
+| `scheduler/main.ts` | Routing, rendering, keyboard shortcuts, and the action table. |
+| `scheduler/ui/` | One module per view, plus the task panel, dialogs, and toasts. All markup goes through the escaping `html` template in `dom.ts`. |
+| `src/` | The earlier recruitment booth site. `index.html` does not load it. |
 
 ## Development
 
-### Prerequisites
-- Node.js 20+
-- npm
-
-### Commands
+Requires Node.js 20 or later.
 
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
-npm run dev
-
-# Run unit tests
-npm test
-
-# Production build
-npm run build
-
-# Preview build
-npm run preview
+npm run dev      # http://localhost:3000
+npm test         # unit tests
+npm run build    # type-check and production build into dist/
 ```
 
-### Shortcuts
-- `P`: Toggle booth mode
-- `Esc`: Close open modal dialogs
-
+Pushing to `main` runs the tests, builds, and deploys to GitHub Pages.

@@ -24,12 +24,14 @@ export interface Block {
   deliverables: string[];
 }
 
+export type TaskStatus = 'todo' | 'in-progress' | 'testing' | 'blocked' | 'done';
+
 export interface Task {
   id: string;
   blockId: string;
   title: string;
   epic: string;
-  status: 'todo' | 'in-progress' | 'testing' | 'blocked' | 'done';
+  status: TaskStatus;
   assignees: string[];
   dependsOn: string[];
   checklist?: string[];
@@ -37,6 +39,8 @@ export interface Task {
   note?: string;
   reactions?: string;
   tags?: string[];
+  /** Target date, YYYY-MM-DD, or empty. */
+  endDate?: string;
 }
 
 export interface FiltersState {
@@ -45,40 +49,8 @@ export interface FiltersState {
   blockId: string;
   status: string;
   assignee: string | null;
+  unassignedOnly: boolean;
 }
-
-export declare const TEAM_MEMBERS: TeamMember[];
-export declare const BLOCKS: Block[];
-export declare const TASKS: Task[];
-export declare const GUEST_MEMBER: TeamMember;
-export declare const memberMap: Record<string, TeamMember>;
-export declare const blockMap: Record<string, Block>;
-export declare const taskMap: Record<string, Task>;
-
-export declare function isTaskBlocked(task: Task | null | undefined): boolean;
-export declare function getStatusLabel(status: string): string;
-export declare function filterTasks(): Task[];
-export declare const activeFilters: FiltersState;
-
-export declare function renderAll(): void;
-export declare function renderRoster(): void;
-export declare function renderMetrics(filtered: Task[]): void;
-export declare function renderHierarchyView(filtered: Task[]): void;
-export declare function renderDependencyChains(): void;
-export declare function renderKanbanView(filtered: Task[]): void;
-export declare function renderAuthPill(): void;
-export declare function populateBlockFilter(): void;
-export declare function openTaskModal(taskId: string): void;
-export declare function closeTaskModal(): void;
-export declare function openProfileModal(): void;
-export declare function closeProfileModal(): void;
-export declare function updateTaskStatus(taskId: string, newStatus: Task['status']): void;
-export declare function claimTask(taskId: string, memberId: string): void;
-export declare function toggleChecklistItem(taskId: string, index: number): void;
-export declare function addTaskNote(taskId: string, noteText: string): void;
-export declare function getActiveUser(): TeamMember;
-export declare function setActiveUser(userId: string): void;
-export declare function init(): void;
 
 export interface AuditLogEntry {
   timestamp: string;
@@ -86,31 +58,76 @@ export interface AuditLogEntry {
   action: string;
 }
 
+export interface RemoteTaskChange {
+  type: 'added' | 'modified' | 'removed';
+  task: Partial<Task> & { id: string; deleted?: boolean; isDeleted?: boolean };
+}
+
+export interface RemoteAdapter {
+  saveTask(task: Task): void;
+  deleteTask(taskId: string): void;
+  saveBlock(block: Block): void;
+}
+
+export interface DeletedTask {
+  task: Task;
+  unlinked: string[];
+}
+
+export declare const STATUSES: TaskStatus[];
+export declare const TEAM_MEMBERS: TeamMember[];
+export declare const BLOCKS: Block[];
+export declare const TASKS: Task[];
+export declare const GUEST_MEMBER: TeamMember;
+export declare const memberMap: Record<string, TeamMember>;
+export declare const blockMap: Record<string, Block>;
+export declare const taskMap: Record<string, Task>;
+export declare const activeFilters: FiltersState;
 export declare const FUN_AVATAR_PACK: string[];
 export declare const FUN_COLOR_PALETTE: string[];
 
+export declare function subscribe(listener: () => void): () => void;
+export declare function onStoreMessage(handler: (message: string) => void): void;
+export declare function setRemote(adapter: Partial<RemoteAdapter>): void;
+
+export declare function isTaskBlocked(task: Task | null | undefined): boolean;
+export declare function unmetDependencies(task: Task): string[];
+export declare function getStatusLabel(status: string): string;
+export declare function taskMatchesFilters(task: Task, filters?: FiltersState): boolean;
+export declare function filterTasks(): Task[];
+export declare function setFilters(patch: Partial<FiltersState>): void;
+
+export declare function getActiveUser(): TeamMember;
+export declare function setActiveUser(userId: string): void;
+export declare function isLeadUser(user?: TeamMember): boolean;
+export declare function canEdit(user?: TeamMember): boolean;
+
+export declare function updateTaskStatus(taskId: string, newStatus: TaskStatus): void;
+export declare function claimTask(taskId: string, memberId: string): void;
+export declare function toggleChecklistItem(taskId: string, index: number): void;
+export declare function addTaskNote(taskId: string, noteText: string): void;
+export declare function assignNameToTask(taskId: string, nameOrId: string): Task | null;
+export declare function unassignNameFromTask(taskId: string, nameOrId: string): Task | null;
+export declare function updateTaskDetails(taskId: string, updates: Partial<Task>): Task | null;
 export declare function createNewTask(params: {
   blockId: string;
   title: string;
   epic?: string;
-  status?: Task['status'];
+  status?: TaskStatus;
   assignees?: string[];
   dependsOn?: string[];
   checklist?: string[];
   tags?: string[];
+  endDate?: string;
 }): Task;
+export declare function deleteTask(taskId: string): DeletedTask | null;
+export declare function restoreTask(deleted: DeletedTask): void;
+export declare function connectTasks(sourceId: string, targetId: string): boolean;
+export declare function disconnectTasks(fromId: string, toId: string): boolean;
 
-export declare function deleteTask(taskId: string): void;
-export declare function openNewTaskModal(): void;
 export declare function getAuditLog(): AuditLogEntry[];
 export declare function addAuditLog(actionText: string): void;
 
-export declare function assignNameToTask(taskId: string, nameOrId: string): Task | null;
-export declare function unassignNameFromTask(taskId: string, nameOrId: string): Task | null;
-export declare function updateTaskDetails(
-  taskId: string,
-  updates: Partial<Task>
-): Task | null;
 export declare function addCrewMember(member: {
   name: string;
   handle?: string;
@@ -119,10 +136,7 @@ export declare function addCrewMember(member: {
   color?: string;
   flair?: string;
 }): TeamMember | null;
-export declare function updateCrewMember(
-  id: string,
-  updates: Partial<TeamMember>
-): TeamMember | null;
+export declare function updateCrewMember(id: string, updates: Partial<TeamMember>): TeamMember | null;
 
 export declare function addBlock(data: {
   name: string;
@@ -133,27 +147,7 @@ export declare function addBlock(data: {
   deliverables?: string[];
   repos?: BlockRepo[];
 }): Block | null;
+export declare function updateBlock(blockId: string, updates: Partial<Block>): Block | null;
 
-export declare function updateBlock(
-  blockId: string,
-  updates: Partial<Block>
-): Block | null;
-
-export declare function openBlockModal(blockId?: string | null): void;
-export declare function closeBlockModal(): void;
-
-export interface FlowLane {
-  splitFrom: string | null;
-  mergesInto?: string | null;
-  tasks: Task[];
-}
-
-export declare function connectTasks(sourceId: string, targetId: string): boolean;
-export declare function disconnectTasks(fromId: string, toId: string): boolean;
-export declare function extractBlockFlowLanes(blockTasks: Task[]): {
-  flowLanes: FlowLane[];
-  standaloneTasks: Task[];
-};
-
-
-
+export declare function applyRemoteTasks(changes: RemoteTaskChange[]): boolean;
+export declare function applyRemoteBlocks(blocks: Block[]): void;
