@@ -1,14 +1,13 @@
 import type { Task, TeamMember } from '../../app.js';
-import { TASKS, BLOCKS, canEdit, getActiveUser, isTaskBlocked, taskMatchesFilters } from '../../app.js';
-import { buildGraph, criticalPath, depthOf, impactOf, type TaskGraph } from '../graph';
+import { TASKS, BLOCKS, getActiveUser, isTaskBlocked, taskMatchesFilters } from '../../app.js';
+import { buildGraph, impactOf, type TaskGraph } from '../graph';
 
-export type ViewName = 'overview' | 'map' | 'board' | 'list';
+export type ViewName = 'home' | 'board' | 'plan';
 
-export const VIEWS: { id: ViewName; label: string; icon: 'overview' | 'map' | 'board' | 'list'; key: string }[] = [
-  { id: 'overview', label: 'Overview', icon: 'overview', key: '1' },
-  { id: 'map', label: 'Dependency map', icon: 'map', key: '2' },
-  { id: 'board', label: 'Board', icon: 'board', key: '3' },
-  { id: 'list', label: 'List', icon: 'list', key: '4' }
+export const VIEWS: { id: ViewName; label: string; icon: 'overview' | 'board' | 'map' }[] = [
+  { id: 'home', label: 'My work', icon: 'overview' },
+  { id: 'board', label: 'Board', icon: 'board' },
+  { id: 'plan', label: 'Plan', icon: 'map' }
 ];
 
 export const LAUNCH = { name: 'Launch Canada 2027', date: '2027-08-10' };
@@ -19,27 +18,20 @@ export interface ViewContext {
   matches: Set<string>;
   graph: TaskGraph;
   impact: Map<string, number>;
-  depth: Map<string, number>;
-  critical: string[];
-  criticalSet: Set<string>;
   user: TeamMember;
   editable: boolean;
   selectedId: string | null;
 }
 
-export function buildContext(selectedId: string | null): ViewContext {
+export function buildContext(selectedId: string | null, editable: boolean): ViewContext {
   const graph = buildGraph(TASKS);
-  const critical = criticalPath(graph);
   return {
     tasks: TASKS,
     matches: new Set(TASKS.filter(t => taskMatchesFilters(t)).map(t => t.id)),
     graph,
     impact: impactOf(graph),
-    depth: depthOf(graph),
-    critical,
-    criticalSet: new Set(critical),
     user: getActiveUser(),
-    editable: canEdit(),
+    editable,
     selectedId
   };
 }

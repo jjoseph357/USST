@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch, Timestamp } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {};
@@ -109,7 +109,9 @@ function toTaskDoc(task) {
     completedChecks: list(task.completedChecks),
     note: String(task.note || ''),
     tags: list(task.tags),
-    endDate: String(task.endDate || '')
+    endDate: String(task.endDate || ''),
+    updatedBy: String(task.updatedBy || ''),
+    updatedAt: Timestamp.fromMillis(task.updatedAt || 0)
   };
 }
 

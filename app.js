@@ -795,8 +795,17 @@ function normalizeTask(raw) {
     completedChecks: Array.isArray(raw.completedChecks) ? raw.completedChecks.filter(Number.isInteger) : [],
     note: String(raw.note ?? raw.notes ?? ''),
     tags: list(raw.tags),
-    endDate: typeof raw.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.endDate) ? raw.endDate : ''
+    endDate: typeof raw.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.endDate) ? raw.endDate : '',
+    updatedAt: toMillis(raw.updatedAt),
+    updatedBy: String(raw.updatedBy || '')
   };
+}
+
+/** Firestore hands back a Timestamp; local state and tests use epoch millis. */
+function toMillis(value) {
+  if (typeof value === 'number') return value;
+  if (value && typeof value.toMillis === 'function') return value.toMillis();
+  return 0;
 }
 
 function upsertTask(raw) {
@@ -957,6 +966,8 @@ function setFilters(patch) {
 }
 
 function persistTask(task, action) {
+  task.updatedAt = Date.now();
+  task.updatedBy = getActiveUser().id;
   addAuditLog(action);
   commit();
   remote.saveTask(task);

@@ -1,22 +1,18 @@
 /** Per-viewer UI conveniences. Shared data never goes here. */
 export interface Prefs {
   theme: 'light' | 'dark' | 'system';
-  mapHideDone: boolean;
-  mapCritical: boolean;
+  mapShowDone: boolean;
   mapZoom: number;
-  boardHideDone: boolean;
-  dismissedGuestBanner: boolean;
+  boardShowDone: boolean;
 }
 
-const KEY = 'usst_ui_prefs_v1';
+const KEY = 'usst_ui_prefs_v2';
 
 const defaults: Prefs = {
   theme: 'system',
-  mapHideDone: false,
-  mapCritical: true,
+  mapShowDone: false,
   mapZoom: 1,
-  boardHideDone: false,
-  dismissedGuestBanner: false
+  boardShowDone: false
 };
 
 function load(): Prefs {

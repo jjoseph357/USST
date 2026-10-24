@@ -1,5 +1,5 @@
 import type { Task, TaskStatus, TeamMember } from '../../app.js';
-import { memberMap } from '../../app.js';
+import { BLOCKS, activeFilters, memberMap, taskMap, unmetDependencies } from '../../app.js';
 
 /** Markup that is already safe. Only `html` and `raw` produce it. */
 export class Safe {
@@ -43,23 +43,47 @@ export function mount(el: Element | null, content: Safe) {
 export const $ = <T extends Element = HTMLElement>(selector: string, root: ParentNode = document) =>
   root.querySelector<T>(selector);
 
-export interface StatusMeta {
-  label: string;
-  short: string;
-}
-
-export const STATUS_META: Record<TaskStatus, StatusMeta> = {
-  todo: { label: 'Backlog', short: 'Backlog' },
-  'in-progress': { label: 'In progress', short: 'Doing' },
-  testing: { label: 'Testing & verify', short: 'Testing' },
-  blocked: { label: 'Waiting on hardware', short: 'Waiting' },
-  done: { label: 'Done', short: 'Done' }
+export const STATUS_META: Record<TaskStatus, { label: string }> = {
+  todo: { label: 'To do' },
+  blocked: { label: 'Waiting on parts' },
+  'in-progress': { label: 'Doing' },
+  testing: { label: 'Testing' },
+  done: { label: 'Done' }
 };
 
 export const STATUS_ORDER: TaskStatus[] = ['todo', 'blocked', 'in-progress', 'testing', 'done'];
 
 export function statusPill(status: TaskStatus) {
   return html`<span class="status-pill s-${status}"><i></i>${STATUS_META[status].label}</span>`;
+}
+
+/** The one obvious next move for a task, or null when there is nothing to press. */
+export function nextStep(t: Task): { status: TaskStatus; label: string } | null {
+  if (t.status === 'blocked') return { status: 'todo', label: 'Parts arrived' };
+  if (t.status === 'todo') return unmetDependencies(t).length ? null : { status: 'in-progress', label: 'Start' };
+  if (t.status === 'in-progress') return { status: 'testing', label: 'Ready to test' };
+  if (t.status === 'testing') return { status: 'done', label: 'Mark done' };
+  return null;
+}
+
+/** A plain-language sentence saying where a task stands. */
+export function situation(t: Task): { text: string; tone: 'ok' | 'wait' | 'busy' | 'done' } {
+  if (t.status === 'done') return { text: 'Finished', tone: 'done' };
+  if (t.status === 'blocked') return { text: t.note ? `Waiting on parts: ${t.note}` : 'Waiting on parts', tone: 'wait' };
+  if (t.status === 'in-progress') return { text: 'In progress', tone: 'busy' };
+  if (t.status === 'testing') return { text: 'Being tested', tone: 'busy' };
+  const waits = unmetDependencies(t).map(id => taskMap[id]).filter(Boolean);
+  if (!waits.length) return { text: 'Ready to start', tone: 'ok' };
+  const more = waits.length > 1 ? ` and ${waits.length - 1} more` : '';
+  return { text: `Can't start yet. Needs “${waits[0].title}”${more} first`, tone: 'wait' };
+}
+
+export function subsystemSelect() {
+  return html`
+    <select class="input input-sm toolbar-select" data-filter="block" aria-label="Subsystem">
+      <option value="all">All subsystems</option>
+      ${BLOCKS.map(b => html`<option value="${b.id}" ${activeFilters.blockId === b.id ? 'selected' : ''}>${b.name}</option>`)}
+    </select>`;
 }
 
 export function member(id: string): TeamMember {
@@ -96,6 +120,16 @@ export function daysUntil(isoDate: string, today = new Date()): number {
   const target = Date.UTC(y, m - 1, d);
   const now = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
   return Math.round((target - now) / DAY);
+}
+
+export function timeAgo(ms: number, now = Date.now()) {
+  const mins = Math.round((now - ms) / 60_000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
 }
 
 export function formatDate(isoDate: string) {

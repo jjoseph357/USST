@@ -1,7 +1,7 @@
 import type { Task } from '../../app.js';
 import { blockMap, activeFilters, isTaskBlocked } from '../../app.js';
 import { layoutGraph, ancestors, descendants, DEFAULT_METRICS as M, type GraphLayout } from '../graph';
-import { html, raw, avatarStack, dueBadge, icon, STATUS_META, STATUS_ORDER, type Safe } from './dom';
+import { html, raw, avatarStack, dueBadge, icon, subsystemSelect, STATUS_META, type Safe } from './dom';
 import { blockOrder, type ViewContext } from './context';
 import { prefs, savePrefs } from './prefs';
 
@@ -10,7 +10,7 @@ let lastLayout: GraphLayout | null = null;
 
 /** Tasks drawn on the map: the subsystem filter plus one hop of cross-subsystem context. */
 function mapTasks(ctx: ViewContext): { tasks: Task[]; context: Set<string> } {
-  let tasks = ctx.tasks.filter(t => !prefs.mapHideDone || t.status !== 'done');
+  let tasks = ctx.tasks.filter(t => prefs.mapShowDone || t.status !== 'done');
   const context = new Set<string>();
   if (activeFilters.blockId !== 'all') {
     const inBlock = new Set(tasks.filter(t => t.blockId === activeFilters.blockId).map(t => t.id));
@@ -44,7 +44,6 @@ function nodeHtml(t: Task, ctx: ViewContext, layout: GraphLayout, isContext: boo
     `s-${t.status}`,
     t.status !== 'done' && !isTaskBlocked(t) ? 'is-ready' : '',
     isTaskBlocked(t) ? 'is-blocked' : '',
-    prefs.mapCritical && ctx.criticalSet.has(t.id) ? 'is-critical' : '',
     !ctx.matches.has(t.id) || isContext ? 'is-dim' : '',
     ctx.selectedId === t.id ? 'is-selected' : ''
   ].filter(Boolean).join(' ');
@@ -55,14 +54,14 @@ function nodeHtml(t: Task, ctx: ViewContext, layout: GraphLayout, isContext: boo
          aria-label="${t.id} ${t.title}, ${STATUS_META[t.status].label}">
       <div class="node-top">
         <span class="mono id">${t.id}</span>
-        <span class="node-status"><i></i>${STATUS_META[t.status].short}</span>
+        <span class="node-status"><i></i>${STATUS_META[t.status].label}</span>
       </div>
       <div class="node-title">${t.title}</div>
       <div class="node-foot">
         ${avatarStack(t.assignees, 3)}
-        <span class="node-tags">${dueBadge(t)}${impact > 0 ? html`<span class="impact" title="${impact} open tasks wait on this">+${impact}</span>` : ''}</span>
+        <span class="node-tags">${dueBadge(t)}${impact > 0 ? html`<span class="unblocks" title="Finishing this lets ${impact} other tasks move">unblocks ${impact}</span>` : ''}</span>
       </div>
-      ${ctx.editable ? html`<span class="port" data-port="${t.id}" title="Drag onto another task to make it depend on ${t.id}"></span>` : ''}
+      ${ctx.editable ? html`<span class="port" data-port="${t.id}" title="Drag onto another task: that task will wait for this one"></span>` : ''}
     </div>`;
 }
 
@@ -72,7 +71,6 @@ export function renderMap(ctx: ViewContext): Safe {
   lastCtx = ctx;
   lastLayout = layout;
   const z = prefs.mapZoom;
-  const critPairs = new Set(ctx.critical.slice(1).map((id, i) => `${ctx.critical[i]}>${id}`));
 
   const lanes = layout.lanes.map(l => {
     const b = blockMap[l.id];
@@ -82,23 +80,23 @@ export function renderMap(ctx: ViewContext): Safe {
       <div class="lane" style="top:${l.y}px;height:${l.height}px;--c:${b?.color ?? '#64748b'}">
         <div class="lane-label">
           <span class="block-dot" style="--c:${b?.color ?? '#64748b'}"></span>
-          <span class="mono muted">${b?.code ?? l.id}</span>
           <strong>${b?.name ?? l.id}</strong>
-          <span class="muted small">${done}/${laneTasks.length} done</span>
+          <span class="muted small">${done} of ${laneTasks.length} done</span>
+          ${ctx.editable && b ? html`<button class="icon-btn" data-action="edit-block" data-id="${b.id}" title="Edit subsystem">${icon('edit', 13)}</button>` : ''}
         </div>
       </div>`;
   });
 
   const edges = layout.edges.map(e => {
     const src = ctx.graph.byId.get(e.from)!;
-    const cls = prefs.mapCritical && critPairs.has(`${e.from}>${e.to}`) ? 'e-critical' : src.status === 'done' ? 'e-done' : 'e-open';
+    const cls = src.status === 'done' ? 'e-done' : 'e-open';
     const d = edgePath(layout, e.from, e.to);
     const dim = !ctx.matches.has(e.from) && !ctx.matches.has(e.to) ? ' is-dim' : '';
     return raw(
       `<g class="edge ${cls}${dim}" data-from="${e.from}" data-to="${e.to}">` +
         `<path class="edge-line" d="${d}" marker-end="url(#arrow-${cls})"/>` +
         (ctx.editable
-          ? `<path class="edge-hit" d="${d}" data-action="unlink" data-from="${e.from}" data-to="${e.to}"><title>${e.from} → ${e.to} (click to remove link)</title></path>`
+          ? `<path class="edge-hit" d="${d}" data-action="unlink" data-from="${e.from}" data-to="${e.to}"><title>Click to remove this arrow</title></path>`
           : '') +
         `</g>`
     );
@@ -108,24 +106,21 @@ export function renderMap(ctx: ViewContext): Safe {
     `<marker id="arrow-${cls}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrow-${cls}"/></marker>`;
 
   const toolbar = html`
-    <div class="map-toolbar">
-      <label class="toggle"><input type="checkbox" data-pref="mapHideDone" ${prefs.mapHideDone ? 'checked' : ''}/> Hide done</label>
-      <label class="toggle"><input type="checkbox" data-pref="mapCritical" ${prefs.mapCritical ? 'checked' : ''}/> Critical path</label>
-      <span class="map-legend small muted">
-        <span><i class="lg lg-ready"></i>Ready</span>
-        <span><i class="lg lg-blocked"></i>Waiting</span>
-        <span><i class="lg lg-critical"></i>Critical</span>
-        <span>+N unblocks N</span>
-      </span>
+    <div class="toolbar">
+      ${subsystemSelect()}
+      <label class="toggle"><input type="checkbox" data-pref="mapShowDone" ${prefs.mapShowDone ? 'checked' : ''}/> Show finished tasks</label>
       <span class="spacer"></span>
-      ${ctx.editable ? html`<span class="small muted hide-sm">Drag a task's right edge onto another to link · click a line to unlink</span>` : ''}
+      ${ctx.editable ? html`<button class="btn btn-ghost btn-sm" data-action="edit-block">${icon('plus', 14)} Add subsystem</button>` : ''}
       <div class="zoom">
         <button class="icon-btn" data-action="zoom" data-step="-0.1" title="Zoom out">${icon('minus', 14)}</button>
         <span class="mono small">${Math.round(z * 100)}%</span>
         <button class="icon-btn" data-action="zoom" data-step="0.1" title="Zoom in">${icon('plus', 14)}</button>
-        <button class="icon-btn" data-action="zoom-fit" title="Fit width">${icon('fit', 14)}</button>
+        <button class="icon-btn" data-action="zoom-fit" title="Fit to screen">${icon('fit', 14)}</button>
       </div>
-    </div>`;
+    </div>
+    <p class="plan-hint">Each arrow means <strong>“finish this first, then that”</strong>. Work flows left to right. Green-edged tasks are ready to start, dashed ones are waiting. Hover a task to see everything connected to it.${
+      ctx.editable ? ' To add an arrow, drag from the dot on a task’s right edge onto another task. Click an arrow to remove it.' : ''
+    }</p>`;
 
   if (!tasks.length) {
     return html`${toolbar}<div class="empty-state"><p>No tasks to draw with the current filters.</p></div>`;
@@ -138,7 +133,7 @@ export function renderMap(ctx: ViewContext): Safe {
         <div class="map-canvas" id="mapCanvas" style="width:${layout.width}px;height:${layout.height}px;transform:scale(${z})">
           ${lanes}
           <svg class="map-edges" width="${layout.width}" height="${layout.height}" aria-hidden="true">
-            <defs>${raw(['e-open', 'e-done', 'e-critical'].map(marker).join(''))}</defs>
+            <defs>${raw(['e-open', 'e-done'].map(marker).join(''))}</defs>
             ${edges}
             <path class="drag-line" id="dragLine" d=""/>
           </svg>
@@ -146,7 +141,7 @@ export function renderMap(ctx: ViewContext): Safe {
         </div>
       </div>
     </div>
-    <p class="map-foot small muted">Columns are dependency depth: everything in a column can start once the columns to its left are done. Statuses: ${STATUS_ORDER.map(s => STATUS_META[s].short).join(' · ')}.</p>`;
+`;
 }
 
 function clearTrace(root: HTMLElement) {
@@ -182,7 +177,7 @@ export function bindMap(root: HTMLElement, onLink: (from: string, to: string) =>
 
   root.addEventListener('change', e => {
     const input = e.target as HTMLInputElement;
-    const key = input.dataset.pref as 'mapHideDone' | 'mapCritical' | undefined;
+    const key = input.dataset.pref as 'mapShowDone' | undefined;
     if (!key) return;
     prefs[key] = input.checked;
     savePrefs();

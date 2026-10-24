@@ -1,10 +1,7 @@
+/// <reference types="vite/client" />
 import type { Task } from '../app.js';
 import {
-  BLOCKS,
-  TASKS,
-  TEAM_MEMBERS,
   taskMap,
-  activeFilters,
   setFilters,
   subscribe,
   onStoreMessage,
@@ -17,17 +14,17 @@ import {
   disconnectTasks,
   deleteTask,
   restoreTask,
-  updateTaskStatus
+  updateTaskStatus,
+  TASKS
 } from '../app.js';
 import { startSync, onSyncStatus, saveTask, deleteTaskDoc, saveBlock, signInWithGoogle, signOutUser, type SyncStatus } from '../firebase.js';
-import { html, mount, icon, avatar, $, daysUntil, type Safe } from './ui/dom';
-import { buildContext, VIEWS, LAUNCH, type ViewName } from './ui/context';
-import { renderOverview } from './ui/overview';
+import { html, mount, icon, avatar, $, STATUS_META, type Safe } from './ui/dom';
+import { buildContext, VIEWS, type ViewName } from './ui/context';
+import { renderHome, type Setup } from './ui/home';
 import { renderMap, bindMap, fitZoom } from './ui/map';
 import { renderBoard, bindBoard } from './ui/board';
-import { renderList } from './ui/list';
 import { renderDrawer, bindDrawer, autosize } from './ui/drawer';
-import { openNewTask, openBlockEditor, openIdentity } from './ui/dialogs';
+import { openNewTask, openBlockEditor, openAccount } from './ui/dialogs';
 import { toast } from './ui/toast';
 import { prefs, savePrefs } from './ui/prefs';
 
@@ -36,9 +33,11 @@ interface Route {
   task: string | null;
 }
 
+const OLD_VIEWS: Record<string, ViewName> = { overview: 'home', map: 'plan', list: 'board' };
+
 function parseRoute(): Route {
   const [path, query = ''] = location.hash.replace(/^#\/?/, '').split('?');
-  const view = (VIEWS.find(v => v.id === path)?.id ?? 'overview') as ViewName;
+  const view = VIEWS.find(v => v.id === path)?.id ?? OLD_VIEWS[path] ?? 'home';
   const task = new URLSearchParams(query).get('task');
   return { view, task: task && taskMap[task] ? task : null };
 }
@@ -50,6 +49,16 @@ function routeHref(r: Route) {
 let route = parseRoute();
 let sync: SyncStatus = { state: 'connecting', user: null, pending: 0, error: null };
 
+// Google sign-in can't run in headless checks, so the dev server lets you edit without it.
+const signedIn = () => Boolean(sync.user) || import.meta.env.DEV;
+
+function setup(): Setup {
+  if (!signedIn()) return 'sign-in';
+  return getActiveUser().id === 'guest' ? 'pick-name' : null;
+}
+
+const editable = () => setup() === null;
+
 function navigate(patch: Partial<Route>, replace = false) {
   route = { ...route, ...patch };
   const href = routeHref(route);
@@ -58,139 +67,59 @@ function navigate(patch: Partial<Route>, replace = false) {
   render();
 }
 
-
-const SYNC_LABEL: Record<SyncStatus['state'], { text: string; tone: string; hint: string }> = {
-  offline: { text: 'Offline', tone: 'bad', hint: 'Cloud sync is unreachable. Changes stay in this browser.' },
-  connecting: { text: 'Connecting…', tone: 'idle', hint: 'Loading the shared board.' },
-  live: { text: 'Live · not signed in', tone: 'warn', hint: 'You see live data, but your edits stay in this browser until you sign in.' },
-  synced: { text: 'Saved', tone: 'ok', hint: 'All changes are saved to the shared board.' },
-  saving: { text: 'Saving…', tone: 'idle', hint: 'Sending changes to the shared board.' },
-  error: { text: 'Not saved', tone: 'bad', hint: 'The last change was rejected. Click for details.' }
+const SAVE_STATE: Partial<Record<SyncStatus['state'], { text: string; tone: string }>> = {
+  offline: { text: 'Offline, changes not saved', tone: 'bad' },
+  synced: { text: 'All changes saved', tone: 'ok' },
+  saving: { text: 'Saving…', tone: 'idle' },
+  error: { text: 'Couldn’t save', tone: 'bad' }
 };
 
 function renderHeader() {
   const me = getActiveUser();
-  const s = SYNC_LABEL[sync.state];
+  const save = SAVE_STATE[sync.state];
+  mount(
+    $('#tabs'),
+    html`${VIEWS.map(v => html`
+      <a class="tab ${route.view === v.id ? 'is-on' : ''}" href="${routeHref({ view: v.id, task: route.task })}" ${route.view === v.id ? html`aria-current="page"` : ''}>
+        ${icon(v.icon, 16)}<span>${v.label}</span></a>`)}`
+  );
   mount(
     $('#headerRight'),
     html`
-      <span class="launch-chip hide-sm" title="${LAUNCH.name} begins ${LAUNCH.date}">${icon('rocket', 13)} <span class="mono">T-${daysUntil(LAUNCH.date)}d</span></span>
-      <button class="sync-chip tone-${s.tone}" data-action="identity" title="${sync.error ?? s.hint}"><i></i><span class="hide-sm">${s.text}</span></button>
-      <button class="icon-btn" data-action="theme" title="Toggle theme">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon', 16)}</button>
-      <button class="me-btn" data-action="identity" title="Who you are on the crew">
-        ${me.id === 'guest' ? html`${icon('user', 16)}<span class="hide-sm">Who are you?</span>` : html`${avatar(me.id, 'sm')}<span class="hide-sm">${me.name}</span>`}
-      </button>
-      ${me.id !== 'guest' ? html`<button class="btn btn-primary btn-sm" data-action="new-task" title="New task (N)">${icon('plus', 14)}<span class="hide-sm">New task</span></button>` : ''}`
+      ${save ? html`<span class="save-state tone-${save.tone}" title="${sync.error ?? ''}"><i></i><span class="hide-sm">${save.text}</span></span>` : ''}
+      ${editable() ? html`<button class="btn btn-primary btn-sm" data-action="new-task">${icon('plus', 14)}<span class="hide-sm">Add task</span></button>` : ''}
+      <button class="icon-btn" data-action="theme" title="Switch light or dark">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon', 16)}</button>
+      ${!signedIn()
+        ? html`<button class="btn btn-sm" data-action="sign-in">Sign in</button>`
+        : me.id === 'guest'
+          ? html`<button class="btn btn-sm" data-action="identity">${icon('user', 15)} Pick your name</button>`
+          : html`<button class="me-btn" data-action="identity" title="Change who you are or sign out">${avatar(me.id)}<span class="hide-sm">${me.name}</span></button>`}`
   );
 }
-
-function renderSidebar() {
-  const open = (pred: (t: Task) => boolean) => TASKS.filter(t => t.status !== 'done' && pred(t)).length;
-  mount(
-    $('#sidebar'),
-    html`
-      <nav class="nav" aria-label="Views">
-        ${VIEWS.map(v => html`
-          <a class="nav-item ${route.view === v.id ? 'is-on' : ''}" href="${routeHref({ view: v.id, task: route.task })}" ${route.view === v.id ? html`aria-current="page"` : ''}>
-            ${icon(v.icon, 16)}<span>${v.label}</span><kbd>${v.key}</kbd></a>`)}
-      </nav>
-      <div class="side-section">
-        <div class="side-head"><span>Subsystems</span>${getActiveUser().id !== 'guest' ? html`<button class="icon-btn" data-action="edit-block" title="New subsystem">${icon('plus', 13)}</button>` : ''}</div>
-        <button class="side-item ${activeFilters.blockId === 'all' ? 'is-on' : ''}" data-action="filter-block" data-id="all"><span class="block-dot" style="--c:var(--muted)"></span><span>All subsystems</span><span class="count">${open(() => true)}</span></button>
-        ${BLOCKS.map(b => html`
-          <button class="side-item ${activeFilters.blockId === b.id ? 'is-on' : ''}" data-action="filter-block" data-id="${b.id}" title="${b.subtitle}">
-            <span class="block-dot" style="--c:${b.color}"></span><span class="truncate">${b.name}</span><span class="count">${open(t => t.blockId === b.id)}</span></button>`)}
-      </div>
-      <div class="side-section">
-        <div class="side-head"><span>Crew</span><span class="muted small">open</span></div>
-        ${TEAM_MEMBERS.map(m => html`
-          <button class="side-item ${activeFilters.assignee === m.id ? 'is-on' : ''}" data-action="filter-person" data-id="${m.id}" title="${m.role} · ${m.flair}">
-            ${avatar(m.id)}<span class="truncate">${m.name}</span><span class="count">${open(t => t.assignees.includes(m.id))}</span></button>`)}
-      </div>`
-  );
-}
-
-const PRESETS: { id: string; label: string; apply: () => Partial<typeof activeFilters> }[] = [
-  { id: 'all', label: 'All', apply: () => ({ status: 'all', assignee: null, unassignedOnly: false }) },
-  { id: 'mine', label: 'Mine', apply: () => ({ status: 'all', assignee: getActiveUser().id, unassignedOnly: false }) },
-  { id: 'pickup', label: 'Up for grabs', apply: () => ({ status: 'unblocked', assignee: null, unassignedOnly: true }) },
-  { id: 'unblocked', label: 'Ready', apply: () => ({ status: 'unblocked', assignee: null, unassignedOnly: false }) },
-  { id: 'blocked', label: 'Blocked', apply: () => ({ status: 'blocked', assignee: null, unassignedOnly: false }) }
-];
-
-function activePreset() {
-  return PRESETS.find(p => {
-    const want = p.apply();
-    return want.status === activeFilters.status && want.assignee === activeFilters.assignee && want.unassignedOnly === activeFilters.unassignedOnly;
-  })?.id;
-}
-
-function renderFilterBar(matchCount: number) {
-  const bar = $('#filterbar')!;
-  bar.hidden = route.view === 'overview';
-  if (bar.hidden) return;
-  const preset = activePreset();
-  const isDefault = activeFilters.blockId === 'all' && preset === 'all' && !activeFilters.search;
-  const block = BLOCKS.find(b => b.id === activeFilters.blockId);
-  const person = activeFilters.assignee ? TEAM_MEMBERS.find(m => m.id === activeFilters.assignee) : null;
-
-  const search = $<HTMLInputElement>('#search', bar);
-  if (!search) {
-    mount(
-      bar,
-      html`
-        <label class="search">${icon('search', 15)}<input id="search" type="search" placeholder="Search tasks, tags, people…" autocomplete="off"/><kbd>/</kbd></label>
-        <div class="presets" role="group" aria-label="Quick filters" id="presets"></div>
-        <div class="filter-chips" id="filterChips"></div>`
-    );
-  }
-  mount(
-    $('#presets', bar),
-    html`${PRESETS.filter(p => p.id !== 'mine' || getActiveUser().id !== 'guest').map(
-      p => html`<button class="preset ${preset === p.id ? 'is-on' : ''}" data-action="preset" data-id="${p.id}">${p.label}</button>`
-    )}`
-  );
-  mount(
-    $('#filterChips', bar),
-    html`
-      ${block ? html`<span class="fchip" style="--c:${block.color}"><span class="block-dot" style="--c:${block.color}"></span>${block.name}<button data-action="filter-block" data-id="all" aria-label="Clear subsystem filter">×</button></span>` : ''}
-      ${person && preset !== 'mine' ? html`<span class="fchip">${avatar(person.id)}${person.name}<button data-action="filter-person" data-id="${person.id}" aria-label="Clear person filter">×</button></span>` : ''}
-      <span class="muted small">${matchCount} of ${TASKS.length}</span>
-      ${isDefault ? '' : html`<button class="link small" data-action="clear-filters">Clear</button>`}`
-  );
-}
-
-function renderGuestBanner() {
-  const el = $('#banner')!;
-  const show = getActiveUser().id === 'guest' && !prefs.dismissedGuestBanner;
-  el.hidden = !show;
-  if (show) {
-    mount(
-      el,
-      html`<span>You're viewing as a guest. <button class="link" data-action="identity">Tell us who you are</button> to claim tasks, update status, and link work.</span>
-        <button class="icon-btn" data-action="dismiss-banner" aria-label="Dismiss">${icon('close', 14)}</button>`
-    );
-  }
-}
-
 
 const VIEW_RENDERERS: Record<ViewName, (ctx: ReturnType<typeof buildContext>) => Safe> = {
-  overview: renderOverview,
-  map: renderMap,
+  home: ctx => renderHome(ctx, setup()),
   board: renderBoard,
-  list: renderList
+  plan: renderMap
 };
 
 function render() {
   if (route.task && !taskMap[route.task]) route.task = null;
-  const ctx = buildContext(route.task);
+  const ctx = buildContext(route.task, editable());
   document.body.dataset.view = route.view;
-  document.title = route.task ? `${route.task} · USST Flight Software` : `${VIEWS.find(v => v.id === route.view)!.label} · USST Flight Software`;
+  const viewLabel = VIEWS.find(v => v.id === route.view)!.label;
+  document.title = route.task ? `${taskMap[route.task].title} · USST Flight Software` : `${viewLabel} · USST Flight Software`;
   renderHeader();
-  renderSidebar();
-  renderGuestBanner();
-  renderFilterBar(ctx.matches.size);
+
+  // Re-rendering replaces the search box, so put the cursor back where it was.
+  const active = document.activeElement as HTMLInputElement | null;
+  const refocus = active?.dataset.filter === 'search' ? active.selectionStart : null;
   mount($('#view'), VIEW_RENDERERS[route.view](ctx));
+  if (refocus !== null) {
+    const search = $<HTMLInputElement>('[data-filter="search"]');
+    search?.focus();
+    search?.setSelectionRange(refocus, refocus);
+  }
   renderDrawerPanel(ctx);
 }
 
@@ -210,71 +139,96 @@ function renderDrawerPanel(ctx: ReturnType<typeof buildContext>) {
   const typing = active && drawer.contains(active) && active.matches('input:not([type=checkbox]):not([type=date]), textarea');
   if (typing && drawer.dataset.task === task.id) return;
   const scroll = drawer.querySelector('.drawer-body')?.scrollTop ?? 0;
+  const moreOpen = drawer.dataset.task === task.id && drawer.querySelector<HTMLDetailsElement>('details.more')?.open;
   drawer.hidden = false;
   drawer.dataset.task = task.id;
   mount(drawer, renderDrawer(task, ctx));
+  if (moreOpen) drawer.querySelector<HTMLDetailsElement>('details.more')!.open = true;
   drawer.querySelectorAll<HTMLTextAreaElement>('.title-input').forEach(autosize);
   const body = drawer.querySelector('.drawer-body');
   if (body) body.scrollTop = scroll;
 }
 
-
-function requireIdentity() {
-  if (getActiveUser().id !== 'guest') return true;
-  openIdentity(sync, syncActions);
-  return false;
+/** Walks someone who can't edit yet through the next setup step. */
+function requireEditable() {
+  const step = setup();
+  if (step === 'sign-in') signIn();
+  if (step === 'pick-name') openAccount(sync, { signOut });
+  return step === null;
 }
 
-function unlinkWithUndo(from: string, to: string) {
-  if (disconnectTasks(from, to)) toast(`Removed link ${from} → ${to}`, { undo: () => connectTasks(from, to) });
+function signIn() {
+  signInWithGoogle().then(
+    () => {
+      if (getActiveUser().id === 'guest') openAccount(sync, { signOut });
+      else toast(`Signed in. Welcome back, ${getActiveUser().name}.`);
+    },
+    err => {
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') return;
+      toast(`Sign-in didn't work: ${err?.message ?? err}`, { tone: 'error' });
+    }
+  );
+}
+
+function signOut() {
+  signOutUser().then(() => toast('Signed out. You can still look around.'));
 }
 
 function applyTheme(theme: 'light' | 'dark') {
   document.documentElement.dataset.theme = theme;
 }
 
+function moveTask(id: string, status: Task['status']) {
+  const task = taskMap[id];
+  if (!task || task.status === status) return;
+  // "To do" holds waiting tasks too; dropping one back there shouldn't clear its wait.
+  if (status === 'todo' && task.status === 'blocked') return;
+  const before = task.status;
+  updateTaskStatus(id, status);
+  toast(`“${task.title}” is now ${STATUS_META[status].label}`, { undo: () => updateTaskStatus(id, before) });
+}
+
 const ACTIONS: Record<string, (el: HTMLElement) => void> = {
   'open-task': el => navigate({ task: el.dataset.id! }),
   'close-drawer': () => navigate({ task: null }),
   'go-view': el => navigate({ view: el.dataset.view as ViewName }),
-  'go-block': el => {
-    setFilters({ blockId: el.dataset.id! });
-    navigate({ view: 'list' });
+  'sign-in': () => signIn(),
+  identity: () => openAccount(sync, { signOut }),
+  advance: el => requireEditable() && moveTask(el.dataset.id!, el.dataset.status as Task['status']),
+  claim: el => {
+    if (!requireEditable()) return;
+    const task = taskMap[el.dataset.id!];
+    claimTask(task.id, getActiveUser().id);
+    toast(`You took “${task.title}”. It's in Your tasks on My work.`, { undo: () => claimTask(task.id, getActiveUser().id) });
   },
-  'go-filter': el => {
-    const f = el.dataset.filter!;
-    setFilters({ blockId: 'all', search: '', assignee: null, unassignedOnly: false, status: f });
-    navigate({ view: f === 'done' || f === 'in-progress' || f === 'testing' ? 'board' : 'list' });
-  },
-  'filter-block': el => setFilters({ blockId: activeFilters.blockId === el.dataset.id ? 'all' : el.dataset.id! }),
-  'filter-person': el => setFilters({ assignee: activeFilters.assignee === el.dataset.id ? null : el.dataset.id!, unassignedOnly: false }),
-  preset: el => setFilters(PRESETS.find(p => p.id === el.dataset.id)!.apply()),
-  'clear-filters': () => {
-    setFilters({ blockId: 'all', status: 'all', assignee: null, unassignedOnly: false, search: '' });
-    const s = $<HTMLInputElement>('#search');
-    if (s) s.value = '';
-  },
-  claim: el => requireIdentity() && claimTask(el.dataset.id!, getActiveUser().id),
-  'new-task': el => {
-    if (!requireIdentity()) return;
-    openNewTask({ blockId: el.dataset.block, status: el.dataset.status as Task['status'] | undefined }, t => {
-      toast(`Created ${t.id}`);
+  'new-task': () => {
+    if (!requireEditable()) return;
+    openNewTask({}, t => {
+      toast(`Added “${t.title}”`);
       navigate({ task: t.id });
     });
   },
-  'edit-block': el => requireIdentity() && openBlockEditor(el.dataset.id ?? null),
-  identity: () => openIdentity(sync, syncActions),
-  unlink: el => unlinkWithUndo(el.dataset.from!, el.dataset.to!),
+  'edit-block': el => requireEditable() && openBlockEditor(el.dataset.id ?? null),
+  'show-done': () => {
+    prefs.boardShowDone = true;
+    savePrefs();
+    render();
+  },
+  'clear-filters': () => setFilters({ blockId: 'all', status: 'all', assignee: null, unassignedOnly: false, search: '' }),
+  unlink: el => {
+    const { from, to } = el.dataset as { from: string; to: string };
+    if (disconnectTasks(from, to)) toast('Link removed', { undo: () => connectTasks(from, to) });
+  },
   'delete-task': el => {
     const id = el.dataset.id!;
     const removed = deleteTask(id);
     if (!removed) return;
     navigate({ task: null }, true);
-    toast(`Deleted ${id}`, { undo: () => restoreTask(removed) });
+    toast(`Deleted “${removed.task.title}”`, { undo: () => restoreTask(removed) });
   },
   'copy-link': el => {
     const url = `${location.origin}${location.pathname}${routeHref({ view: route.view, task: el.dataset.id! })}`;
-    navigator.clipboard?.writeText(url).then(() => toast('Link copied'), () => toast(url));
+    navigator.clipboard?.writeText(url).then(() => toast('Link copied. Paste it in Discord to share this task.'), () => toast(url));
   },
   theme: () => {
     const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -282,11 +236,6 @@ const ACTIONS: Record<string, (el: HTMLElement) => void> = {
     savePrefs();
     applyTheme(next);
     renderHeader();
-  },
-  'dismiss-banner': () => {
-    prefs.dismissedGuestBanner = true;
-    savePrefs();
-    renderGuestBanner();
   },
   zoom: el => {
     prefs.mapZoom = Math.round(Math.max(0.4, Math.min(1.6, prefs.mapZoom + Number(el.dataset.step))) * 10) / 10;
@@ -318,23 +267,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !typing && t.dataset.action === 'open-task') {
     e.preventDefault();
     ACTIONS['open-task'](t);
-    return;
-  }
-  if (e.key === 'Escape' && !document.querySelector('dialog[open]')) {
+  } else if (e.key === 'Escape' && !document.querySelector('dialog[open]')) {
     if (typing) t.blur();
     else if (route.task) navigate({ task: null });
-    return;
-  }
-  if (typing || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('dialog[open]')) return;
-  const view = VIEWS.find(v => v.key === e.key);
-  if (view) navigate({ view: view.id });
-  else if (e.key === '/') {
-    e.preventDefault();
-    if (route.view === 'overview') navigate({ view: 'list' });
-    $<HTMLInputElement>('#search')?.focus();
-  } else if (e.key === 'n' || e.key === 'N') {
-    e.preventDefault();
-    ACTIONS['new-task'](document.body);
   }
 });
 
@@ -343,18 +278,13 @@ window.addEventListener('popstate', () => {
   render();
 });
 
-
-const syncActions = {
-  signIn: () =>
-    signInWithGoogle().then(
-      () => toast('Signed in. Your changes now save for the whole team.'),
-      err => {
-        if (err?.code === 'auth/popup-closed-by-user') return;
-        toast(`Sign-in failed: ${err?.code === 'auth/operation-not-allowed' ? 'Google sign-in is not enabled for this Firebase project yet.' : err?.message ?? err}`, { tone: 'error' });
-      }
-    ),
-  signOut: () => signOutUser().then(() => toast('Signed out. Edits now stay in this browser.'))
-};
+function onFilter(e: Event) {
+  const el = e.target as HTMLInputElement;
+  const kind = el.dataset.filter;
+  if (kind === 'block') setFilters({ blockId: el.value });
+  else if (kind === 'mine') setFilters({ assignee: el.checked ? getActiveUser().id : null, unassignedOnly: false });
+  else if (kind === 'search' && e.type === 'input') setFilters({ search: el.value });
+}
 
 function boot() {
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -362,31 +292,26 @@ function boot() {
 
   const view = $('#view')!;
   bindMap(view, (from, to) => {
-    if (connectTasks(from, to)) toast(`Linked ${from} → ${to}`, { undo: () => disconnectTasks(from, to) });
+    if (connectTasks(from, to)) {
+      toast(`“${taskMap[to].title}” now waits for “${taskMap[from].title}”`, { undo: () => disconnectTasks(from, to) });
+    }
   }, render);
-  bindBoard(view, (id, status) => updateTaskStatus(id, status), () => {
-    savePrefs();
-    render();
-  });
-  view.addEventListener('change', e => {
-    const sel = e.target as HTMLSelectElement;
-    if (sel.dataset.statusFor) updateTaskStatus(sel.dataset.statusFor, sel.value as Task['status']);
-  });
+  bindBoard(view, moveTask);
+  view.addEventListener('change', onFilter);
+  view.addEventListener('input', onFilter);
   bindDrawer($('#drawer')!, () => route.task);
   $('#scrim')!.addEventListener('click', () => navigate({ task: null }));
-  $('#filterbar')!.addEventListener('input', e => {
-    const input = e.target as HTMLInputElement;
-    if (input.id === 'search') setFilters({ search: input.value });
-  });
 
   onStoreMessage(message => toast(message, { tone: 'error' }));
   subscribe(render);
   setRemote({ saveTask, deleteTask: deleteTaskDoc, saveBlock });
   onSyncStatus(next => {
     const failed = next.error && next.error !== sync.error;
+    const authChanged = Boolean(next.user) !== Boolean(sync.user);
     sync = next;
-    renderHeader();
-    if (failed) toast(`Couldn't save to the shared board: ${next.error}`, { tone: 'error' });
+    if (authChanged) render();
+    else renderHeader();
+    if (failed) toast(`Your last change didn't save: ${next.error}`, { tone: 'error' });
   });
   startSync({ onTasks: applyRemoteTasks, onBlocks: applyRemoteBlocks, seedTasks: () => TASKS });
 

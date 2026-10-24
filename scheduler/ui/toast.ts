@@ -18,6 +18,8 @@ export function toast(message: string, opts: { undo?: () => void; tone?: 'info' 
     close();
   });
   el.querySelector('[data-dismiss]')?.addEventListener('click', close);
+  // One message at a time keeps the screen readable; errors stay until they time out.
+  host.querySelectorAll('.toast:not(.toast-error)').forEach(old => old.remove());
   host.appendChild(el);
   setTimeout(close, opts.tone === 'error' ? 9000 : 6000);
 }

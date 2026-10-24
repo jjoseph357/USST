@@ -41,6 +41,10 @@ export interface Task {
   tags?: string[];
   /** Target date, YYYY-MM-DD, or empty. */
   endDate?: string;
+  /** Epoch millis of the last change, 0 when unknown. */
+  updatedAt?: number;
+  /** Crew id of whoever made the last change. */
+  updatedBy?: string;
 }
 
 export interface FiltersState {

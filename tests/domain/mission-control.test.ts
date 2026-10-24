@@ -677,6 +677,20 @@ describe('USST Rocketry Mission Control Task Hub', () => {
       applyRemoteTasks([{ type: 'removed', task: { id: 'ZZ-01' } }]);
     });
 
+    it('records who changed a task and when, and reads Firestore timestamps back as millis', () => {
+      setActiveUser('nick');
+      const t = createNewTask({ blockId: 'block-2', title: 'Stamp probe' });
+      const before = Date.now();
+      updateTaskStatus(t.id, 'in-progress');
+      expect(t.updatedBy).toBe('nick');
+      expect(t.updatedAt).toBeGreaterThanOrEqual(before);
+
+      applyRemoteTasks([{ type: 'modified', task: { ...t, updatedBy: 'sophie', updatedAt: { toMillis: () => 1234 } as never } }]);
+      expect(taskMap[t.id].updatedBy).toBe('sophie');
+      expect(taskMap[t.id].updatedAt).toBe(1234);
+      deleteTask(t.id);
+    });
+
     it('restores a deleted task together with the links that pointed at it', () => {
       setActiveUser('joseph');
       const parent = createNewTask({ blockId: 'block-3', title: 'Undo parent' });
